@@ -7,6 +7,10 @@ import * as mysql from 'mysql2/promise';
         {
             provide: 'DATABASE_CONNECTION',
             useFactory: () => {
+                console.log('DB Config:', {
+                    host: process.env.DB_HOST,
+                    port: process.env.DB_PORT
+                });
                 const connection = mysql.createPool({
                     host: process.env.DB_HOST,
                     port: parseInt(process.env.DB_PORT as string),
@@ -27,4 +31,4 @@ import * as mysql from 'mysql2/promise';
     ],
     exports: ['DATABASE_CONNECTION'],
 })
-export class DatabaseModule {}
+export class DatabaseModule { }
