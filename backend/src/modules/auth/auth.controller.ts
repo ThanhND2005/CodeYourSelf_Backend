@@ -30,7 +30,7 @@ export class AuthController {
       const refreshToken = randomUUID()
       const expireat = new Date()
       expireat.setTime(expireat.getTime() + (8*60*60*1000))
-      await this.authService.postSession(account.userid,refreshToken, new Date(),expireat)
+      await this.authService.postSession(account.userId,refreshToken, new Date(),expireat)
       res.cookie('refreshtoken',refreshToken,{
         httpOnly: true,
         secure:true,
@@ -61,7 +61,7 @@ export class AuthController {
       const refreshToken = randomUUID()
       const expireat = new Date() 
       expireat.setTime(expireat.getTime() + (8*60*60*1000))
-      await this.authService.postSession(account.userid,refreshToken,new Date(),expireat)
+      await this.authService.postSession(account.userId,refreshToken,new Date(),expireat)
       res.cookie('refreshtoken',refreshToken,{
         httpOnly: true,
         secure:true,
@@ -92,7 +92,7 @@ export class AuthController {
       const refreshtoken = randomUUID()
       const expireat = new Date()
       expireat.setTime(expireat.getTime() + (8*60*60*1000))
-      await this.authService.postSession(account.userid,refreshtoken,new Date(),expireat)
+      await this.authService.postSession(account.userId,refreshtoken,new Date(),expireat)
       res.cookie('refreshtoken',refreshtoken,{
         httpOnly: true,
         secure:true,
@@ -126,7 +126,7 @@ export class AuthController {
       else if(role =="student")
       {
         const user = await this.authService.getAccount(username,role)
-        await this.authService.postStudent(user.userid,name, dob,address,gender)
+        await this.authService.postStudent(user.userId,name, dob,address,gender)
       }
     } catch (error) {
       console.error(error)
@@ -151,7 +151,7 @@ export class AuthController {
       {
         throw new ForbiddenException('Token sắp hết hạn')
       }
-      const account = await this.authService.getAccountById(session.userid)
+      const account = await this.authService.getAccountById(session.userId)
       const accessToken = jwt.sign({userid: account.userId,role: account.userrole}, process.env.ACCESS_TOKEN_SECRET as string, {expiresIn:'30m'})
       return {accessToken}
     } catch (error) {
