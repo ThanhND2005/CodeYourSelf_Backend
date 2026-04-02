@@ -1,7 +1,8 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
 import * as mysql from 'mysql2/promise'
-
-interface StudentRow extends mysql.RowDataPacket {
+import * as Minio from 'minio'
+import axios from 'axios'
+export interface StudentRow extends mysql.RowDataPacket {
   userId: string,
   name: string,
   dob: Date,
@@ -10,7 +11,7 @@ interface StudentRow extends mysql.RowDataPacket {
   gender: string,
 
 }
-interface TeacherRow extends mysql.RowDataPacket {
+export interface TeacherRow extends mysql.RowDataPacket {
   userId: string,
   name: string,
   dob: Date,
@@ -19,7 +20,7 @@ interface TeacherRow extends mysql.RowDataPacket {
   gender: string,
   createAt: Date,
 }
-interface NotificationRow extends mysql.RowDataPacket {
+export interface NotificationRow extends mysql.RowDataPacket {
   senderId: string,
   receiverId: string,
   notificationId: string,
@@ -27,7 +28,7 @@ interface NotificationRow extends mysql.RowDataPacket {
   content: string,
   createdAt: Date
 }
-interface WaitCourseRow extends mysql.RowDataPacket{
+export interface WaitCourseRow extends mysql.RowDataPacket{
   courseId: string, 
   name: string, 
   cost: string, 
@@ -35,11 +36,42 @@ interface WaitCourseRow extends mysql.RowDataPacket{
   teacherId: string,
   teacherName: string,
 }
+export interface StudentBill extends mysql.RowDataPacket{
+  paymentId: string, 
+  createdAt: Date,
+  amount: number,
+  courseId: string,
+  courseName: string,
+  studentId: string,
+  studentName: string,
+  qrUrl: string,
+  status: string,
+}
+export interface TeacherBill extends mysql.RowDataPacket{
+  salaryId: string,
+  createdAt: Date,
+  amount: number,
+  teacherId: string,
+  teacherName: string,
+  status:string,
+  qrUrl: string
+}
+
 @Injectable()
 export class AdminService {
+  private readonly minioClient: Minio.Client
+  private readonly bucketName: 'images'
   constructor(
     @Inject('DATABASE_CONNECTION') private readonly db: mysql.Pool,
-  ) { }
+  ) {
+    this.minioClient = new Minio.Client({
+      endPoint:'localhost',
+      port:9000,
+      useSSL:false,
+      accessKey:'admin',
+      secretKey:'admin1234'
+    })
+   }
   async getStudents(): Promise<StudentRow[]> {
     const [rows] = await this.db.execute<StudentRow[]>(`SELECT s.* FROM Student s JOIN Account a on a.userId = s.userId AND a.deleted = 0 WHERE s.deleted = 0`, [])
     return rows
@@ -132,4 +164,103 @@ ORDER BY createdat DESC;`, [userId]
     const [rows] = await this.db.execute<WaitCourseRow[]>(`SELECT c.courseId, c.name, c.cost,c.summary,c.teacherId, t.name as teacherName FROM Course c JOIN Teacher t on t.userId= c.teacherId WHERE deleted=1`)
     return rows
   } 
+  async getStudentBills (): Promise<StudentBill[]> {
+    const [rows] =await this.db.execute<StudentBill[]>(
+      `SELECT p.paymentId, p.createdAt,p.amount, p.courseId, c.name as courseName, p.studentId, s.name as studentName, p.qrUrl,p.status 
+      FROM Payment p 
+      JOIN Course c on c.courseId = p.courseId AND c.deleted=0
+      JOIN Student s on s.userId = p.studentId AND s.deleted=0
+      WHERE p.deleted=0`
+    )
+    return rows
+  }
+  async postStudentBill (paymentId: string, createdAt: Date,amount: number,courseId: string,studentId:string): Promise<StudentBill>{
+    const url = `https://img.vietqr.io/image/mbbank-0334477715-print.png?amount=${amount}&addInfo=${paymentId}&accountName=Code%20Your%20Self`
+    try {
+      const response = await axios.get(url,{responseType:'arraybuffer'})
+      const buffer = Buffer.from(response.data,'binary')
+      const fileName= `qr-${paymentId}-${Date.now()}.png`;
+      await this.minioClient.putObject(
+        this.bucketName,
+        fileName,
+        buffer,
+        buffer.length,
+        {'Content-Type' :'image/png'}
+      )
+      const minioUrl = `http://localhost:9000/${this.bucketName}/${fileName}`
+      await this.db.execute(
+        `INSERT INTO Payment (paymentId, createdAt, amount, courseId, studentId,qrUrl) VALUES (?,?,?,?,?,?)`,[paymentId,createdAt,amount,courseId,studentId,minioUrl]
+      )
+      const [rows] = await this.db.execute<StudentBill[]>(
+        `SELECT p.paymentId, p.createdAt,p.amount, p.courseId, c.name as courseName, p.studentId, s.name as studentName, p.qrUrl,p.status 
+        FROM Payment p 
+        JOIN Course c on c.courseId = p.courseId AND c.deleted=0
+        JOIN Student s on s.userId = p.studentId AND s.deleted=0
+        WHERE p.deleted=0 AND p.paymentId=?`,[paymentId]
+      )
+      return rows[0]
+      
+    } catch (error) {
+      console.error('Lỗi khi xử lý ảnh QR trên server:', error);
+      throw new InternalServerErrorException('Lỗi server khi tạo và lưu QR Code');
+    }
+  }
+  async postSalary (salaryId: string, createdAt:Date, amount: number,teacherId: string): Promise<void>{
+    const url =`https://img.vietqr.io/image/mbbank-0334477715-print.png?amount=${amount}&addInfo=${salaryId}&accountName=Code%20Your%20Self`;
+    try {
+      const response =await axios.get(url,{responseType:"arraybuffer"})
+      const buffer = Buffer.from(response.data,'binary')
+      const fileName= `qr-${salaryId}-${Date.now()}.png`;
+      await this.minioClient.putObject(
+        this.bucketName,
+        fileName,
+        buffer,
+        buffer.length,
+        {'Content-Type' :'image/png'}
+      )
+      const minioUrl = `http://localhost:9000/${this.bucketName}/${fileName}`
+      await  this.db.execute(
+        `INSERT INTO Salary (salaryId ,createdAt, amount,teacherId, qrUrl) VALUES (?,?,?,?,?)`,[salaryId,createdAt,amount,teacherId,minioUrl]
+      )
+    } catch (error) {
+      console.error('Lỗi khi xử lý ảnh QR trên server:', error);
+      throw new InternalServerErrorException('Lỗi server khi tạo và lưu QR Code');
+    }
+  }
+  async getSalary () : Promise<TeacherBill[]> {
+    const [rows] = await this.db.execute<TeacherBill[]>(
+      `SELECT s.salaryId, s.createdAt,s.amount, s.teacherId,t.name as teacherName,s.status,s.qrUrl 
+      FROM Salary s 
+      JOIN Teacher t on t.userId=s.teacherId
+      WHERE s.deleted = 0`
+    )
+    return rows
+  }
+  async deleteStudentBill (paymentId  : string) : Promise<void>{
+    await this.db.execute(
+      `UPDATE Payment SET deleted=1 WHERE paymentId=?`,[paymentId]
+    )
+  }
+  async acceptWaitCourse (courseId: string): Promise<void>{
+    await this.db.execute(
+      `UPDATE Course SET deleted=0 WHERE courseId=?`,[courseId]
+    )
+  }
+  async denyWaitCourse (courseId: string) : Promise<void>{
+    await this.db.execute(
+      `DELETE FROM Course WHERE courseId=?`,[courseId]
+    )
+  }
+  async getCourseById(teacherId: string): Promise<StudentBill[]>{
+    const month = (new Date()).getMonth()
+    const [rows] = await this.db.execute<StudentBill[]>(
+      `SELECT p.paymentId, p.createdAt,p.amount, p.courseId, c.name as courseName, p.studentId, s.name as studentName, p.qrUrl,p.status 
+      FROM Payment p 
+      JOIN Course c on c.courseId = p.courseId AND c.deleted=0
+      JOIN Student s on s.userId = p.studentId AND s.deleted=0
+      JOIN Teacher t on t.userId = c.teacherId AND t.deleted=0
+      WHERE p.deleted=0 AND t.userId=?`,[teacherId]
+    )
+    return rows.filter((t)=> (new Date(t.createdAt)).getMonth() === month)
+  }
 }
