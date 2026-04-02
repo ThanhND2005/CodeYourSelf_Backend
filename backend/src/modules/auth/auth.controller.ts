@@ -26,7 +26,7 @@ export class AuthController {
       {
         throw new UnauthorizedException('Thông tin tài khoản hoặc mật khẩu không chính xác !')
       }
-      const accessToken = jwt.sign({userid: account.userId, role : account.userrole}, process.env.ACCESS_TOKEN_SECRET as string,{expiresIn:'30m'})
+      const accessToken = jwt.sign({userId: account.userId, role : account.userrole}, process.env.ACCESS_TOKEN_SECRET as string,{expiresIn:'30m'})
       const refreshToken = randomUUID()
       const expireat = new Date()
       expireat.setTime(expireat.getTime() + (8*60*60*1000))
@@ -88,7 +88,7 @@ export class AuthController {
       {
         throw new UnauthorizedException('Thông tin tài khoản hoặc mật khẩu không chính xác !')
       }
-      const accessToken = jwt.sign({userid: account.userId,role: account.userrole},process.env.ACCESS_TOKEN_SECRET as string, {expiresIn:'30m'})
+      const accessToken = jwt.sign({userId: account.userId,role: account.userrole},process.env.ACCESS_TOKEN_SECRET as string, {expiresIn:'30m'})
       const refreshtoken = randomUUID()
       const expireat = new Date()
       expireat.setTime(expireat.getTime() + (8*60*60*1000))
@@ -138,6 +138,7 @@ export class AuthController {
   async refresh(@Req() req: Request){
     try {
       const refreshtoken  = (req.cookies?.refreshtoken) as string
+      
       if(!refreshtoken)
       {
         throw new UnauthorizedException('Token không tồn tại')
@@ -151,6 +152,7 @@ export class AuthController {
       {
         throw new ForbiddenException('Token sắp hết hạn')
       }
+      
       const account = await this.authService.getAccountById(session.userId)
       const accessToken = jwt.sign({userid: account.userId,role: account.userrole}, process.env.ACCESS_TOKEN_SECRET as string, {expiresIn:'30m'})
       return {accessToken}

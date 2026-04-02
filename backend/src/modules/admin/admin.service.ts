@@ -18,7 +18,7 @@ export interface TeacherRow extends mysql.RowDataPacket {
   address: string,
   phone: string,
   gender: string,
-  createAt: Date,
+  createdAt: Date,
 }
 export interface NotificationRow extends mysql.RowDataPacket {
   senderId: string,
@@ -59,8 +59,8 @@ export interface TeacherBill extends mysql.RowDataPacket{
 
 @Injectable()
 export class AdminService {
-  private readonly minioClient: Minio.Client
-  private readonly bucketName: 'images'
+  private readonly minioClient : Minio.Client
+  private readonly bucketName = 'images'
   constructor(
     @Inject('DATABASE_CONNECTION') private readonly db: mysql.Pool,
   ) {
@@ -93,7 +93,7 @@ export class AdminService {
     }
   }
   async getTeachers(): Promise<TeacherRow[]> {
-    const [rows] = await this.db.execute<TeacherRow[]>(`SELECT userId, name,dob,address, phone, gender, createAt FROM Teacher WHERE deleted=0`)
+    const [rows] = await this.db.execute<TeacherRow[]>(`SELECT userId, name,dob,address, phone, gender, createdAt FROM Teacher WHERE deleted=0`)
     return rows
   }
   async deleteTeacher(userId: string): Promise<void> {
@@ -161,15 +161,15 @@ ORDER BY createdat DESC;`, [userId]
     }
   }
   async getWaitCourses (): Promise<WaitCourseRow[]>{
-    const [rows] = await this.db.execute<WaitCourseRow[]>(`SELECT c.courseId, c.name, c.cost,c.summary,c.teacherId, t.name as teacherName FROM Course c JOIN Teacher t on t.userId= c.teacherId WHERE deleted=1`)
+    const [rows] = await this.db.execute<WaitCourseRow[]>(`SELECT c.courseId, c.name, c.cost,c.summary,c.teacherId, t.name as teacherName FROM Course c JOIN Teacher t on t.userId= c.teacherId WHERE c.deleted=1`)
     return rows
   } 
   async getStudentBills (): Promise<StudentBill[]> {
     const [rows] =await this.db.execute<StudentBill[]>(
       `SELECT p.paymentId, p.createdAt,p.amount, p.courseId, c.name as courseName, p.studentId, s.name as studentName, p.qrUrl,p.status 
       FROM Payment p 
-      JOIN Course c on c.courseId = p.courseId AND c.deleted=0
-      JOIN Student s on s.userId = p.studentId AND s.deleted=0
+      JOIN Course c on c.courseId = p.courseId 
+      JOIN Student s on s.userId = p.studentId 
       WHERE p.deleted=0`
     )
     return rows

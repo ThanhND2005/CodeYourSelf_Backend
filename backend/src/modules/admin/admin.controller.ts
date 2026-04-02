@@ -1,9 +1,10 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus, InternalServerErrorException, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus, InternalServerErrorException, Req, UseGuards } from '@nestjs/common';
 import { AdminService } from './admin.service';
-import axios from 'axios'
-import * as Minio from 'minio'
 import { randomUUID } from 'crypto';
 import { PaymentDto } from './dto/create-admin.dto';
+import { AuthGuard } from 'src/guards/auth.guard';
+import { RolesGuard } from 'src/guards/role.guard';
+import { Roles } from 'src/guards/role.decorator';
 interface User extends Request{
   user:{
     userId: string,
@@ -13,9 +14,11 @@ interface User extends Request{
 }
 
 @Controller('apis/admin')
+@UseGuards(AuthGuard,RolesGuard)
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
   @Get('getStudents')
+  @Roles('admin')
   @HttpCode(HttpStatus.OK)
   async getStudents (){
     try {
