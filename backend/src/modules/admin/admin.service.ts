@@ -174,18 +174,36 @@ ORDER BY createdat DESC;`, [userId]
     )
     return rows
   }
-  async postStudentBill (paymentId: string, createdAt: Date,amount: number,courseId: string,studentId:string, qrUrl: string,status:string): Promise<StudentBill>{
-    await this.db.execute(
-      `INSERT INTO Payment (paymentId, createdAt, amount, courseId, studentId,qrUrl,status) VALUES (?,?,?,?,?,?,?)`,[paymentId,createdAt,amount,courseId,studentId,qrUrl,status]
-    )
-    const [rows] = await this.db.execute<StudentBill[]>(
-      `SELECT p.paymentId, p.createdAt,p.amount, p.courseId, c.name as courseName, p.studentId, s.name as studentName, p.qrUrl,p.status 
-      FROM Payment p 
-      JOIN Course c on c.courseId = p.courseId AND c.deleted=0
-      JOIN Student s on s.userId = p.studentId AND s.deleted=0
-      WHERE p.deleted=0 AND p.paymentId=?`,[paymentId]
-    )
-    return rows[0]
+  async postStudentBill (paymentId: string, createdAt: Date,amount: number,courseId: string,studentId:string): Promise<StudentBill>{
+    const url = `https://img.vietqr.io/image/mbbank-0334477715-print.png?amount=${amount}&addInfo=${paymentId}&accountName=Code%20Your%20Self`
+    try {
+      const response = await axios.get(url,{responseType:'arraybuffer'})
+      const buffer = Buffer.from(response.data,'binary')
+      const fileName= `qr-${paymentId}-${Date.now()}.png`;
+      await this.minioClient.putObject(
+        this.bucketName,
+        fileName,
+        buffer,
+        buffer.length,
+        {'Content-Type' :'image/png'}
+      )
+      const minioUrl = `http://localhost:9000/${this.bucketName}/${fileName}`
+      await this.db.execute(
+        `INSERT INTO Payment (paymentId, createdAt, amount, courseId, studentId,qrUrl) VALUES (?,?,?,?,?,?)`,[paymentId,createdAt,amount,courseId,studentId,minioUrl]
+      )
+      const [rows] = await this.db.execute<StudentBill[]>(
+        `SELECT p.paymentId, p.createdAt,p.amount, p.courseId, c.name as courseName, p.studentId, s.name as studentName, p.qrUrl,p.status 
+        FROM Payment p 
+        JOIN Course c on c.courseId = p.courseId AND c.deleted=0
+        JOIN Student s on s.userId = p.studentId AND s.deleted=0
+        WHERE p.deleted=0 AND p.paymentId=?`,[paymentId]
+      )
+      return rows[0]
+      
+    } catch (error) {
+      console.error('Lỗi khi xử lý ảnh QR trên server:', error);
+      throw new InternalServerErrorException('Lỗi server khi tạo và lưu QR Code');
+    }
   }
   async postSalary (salaryId: string, createdAt:Date, amount: number,teacherId: string): Promise<void>{
     const url =`https://img.vietqr.io/image/mbbank-0334477715-print.png?amount=${amount}&addInfo=${salaryId}&accountName=Code%20Your%20Self`;

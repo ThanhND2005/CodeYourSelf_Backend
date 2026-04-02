@@ -3,6 +3,7 @@ import { AdminService } from './admin.service';
 import axios from 'axios'
 import * as Minio from 'minio'
 import { randomUUID } from 'crypto';
+import { PaymentDto } from './dto/create-admin.dto';
 interface User extends Request{
   user:{
     userId: string,
@@ -138,6 +139,79 @@ export class AdminController {
         }
         const salaryId = randomUUID()
         await this.adminService.postSalary(salaryId,new Date(),amount,teacher.userId)
+        return{
+          message:'Tạo hóa đơn lượng thành công'
+        }
+      }
+    } catch (error) {
+      console.error(error)
+      throw new InternalServerErrorException
+    }
+  }
+  @Get('getSalary')
+  @HttpCode(HttpStatus.OK)
+  async getSalary () {
+    try {
+      const teacherBills = await this.adminService.getSalary()
+      return{
+        teacherBills,
+        message:'Lấy hóa đơn thành công!'
+      }
+      
+    } catch (error) {
+      console.error(error)
+      throw new InternalServerErrorException
+    }
+  }
+  @Patch('deleteStudentBill/:paymentId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteStudentBill (@Param('paymentId') paymentId: string) {
+    try {
+      await this.adminService.deleteStudentBill(paymentId)
+      return{
+        message:'Xóa hóa đơn thành công'
+      }
+    } catch (error) {
+      console.error(error)
+      throw new InternalServerErrorException
+    }
+  }
+  @Patch('acceptWaitCourse/:courseId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async acceptWaitCourse (@Param('courseId') courseId: string){
+    try {
+      await this.adminService.acceptWaitCourse(courseId)
+      return{
+        message:'Duyệt code thành công'
+      }
+    } catch (error) {
+      console.error(error)
+      throw new InternalServerErrorException
+    }
+  }
+  @Delete('denyWaitCourse/:courseId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async denyWaitCourse (@Param('courseId') courseId: string){
+    try {
+      await this.adminService.denyWaitCourse(courseId)
+      return{
+        message:'Xóa khóa học thành công'
+      }
+    } catch (error) {
+      console.error(error)
+      throw new InternalServerErrorException
+    }
+  }
+  @Post('postStudentBill')
+  @HttpCode(HttpStatus.CREATED)
+  async postStudentBill (@Body() paymentDto: PaymentDto){
+    try {
+      const {courseId,studentId,amount} = paymentDto
+      const paymentId = randomUUID()
+      const payment = await this.adminService.postStudentBill(paymentId,new Date(),amount,courseId,studentId)
+      return{
+        payment,
+        message:'Tạo hóa đơn thành công'
       }
     } catch (error) {
       console.error(error)
