@@ -1,10 +1,11 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UnauthorizedException, HttpCode, HttpStatus, InternalServerErrorException, ConflictException, Res, Req, ForbiddenException, NotFoundException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UnauthorizedException, HttpCode, HttpStatus, InternalServerErrorException, ConflictException, Res, Req, ForbiddenException, NotFoundException, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto, SignupDto } from './dto/create-auth.dto';
 import bcrypt from 'bcrypt'
 import jwt from 'jsonwebtoken'
 import { randomUUID } from 'crypto';
 import type { Response,Request } from 'express';
+import { AuthGuard } from 'src/guards/auth.guard';
 interface User extends Request{
   user:{
     userid: string, 
@@ -174,6 +175,7 @@ export class AuthController {
     }
   }
   @Get('authMe')
+  @UseGuards(AuthGuard)
   @HttpCode(HttpStatus.OK)
   authMe(@Res({passthrough: true}) res : Response,@Req() req : User){
     const user = req.user 
