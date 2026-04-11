@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus, UseInterceptors, UploadedFile, BadRequestException, Query } from '@nestjs/common';
+  import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus, UseInterceptors, UploadedFile, BadRequestException, Query } from '@nestjs/common';
 import { StudentService } from './student.service';
 import { FileInterceptor } from '@nestjs/platform-express';
 
@@ -24,17 +24,41 @@ export class StudentController {
   @HttpCode(HttpStatus.OK)
   async searchCourse(@Query('searchTerm') searchTerm : string) {
     const courseSearchs=  await this.studentService.searchCourse(searchTerm)
+    const multipleCourseSearchs = await this.studentService.searchMultipleCourse(searchTerm)
     return{
       courseSearchs,
+      multipleCourseSearchs,
       message:'Thành công'
     }
   }
   @Get('getDetailCourse/:courseId')
   @HttpCode(HttpStatus.OK)
   async getDetailCourse(@Param('courseId') courseId: string){
-    const couse = await this.studentService.getDetailCourse(courseId)
+    const course = await this.studentService.getDetailCourse(courseId)
+    const lessons = await this.studentService.getCoursePaid(courseId)
+    course.lessons = lessons
     return{
-      couse
+      course
+    }
+  }
+  @Get('getDetailCourses/:courseId')
+  @HttpCode(HttpStatus.OK)
+  async getDetailCourses(@Param('courseId') courseId: string){
+    const courses = await this.studentService.getDetailCourseById(courseId)
+    for(let i  =0; i< courses.length;i++){
+      const lessons = await this.studentService.getCoursePaid(courses[i].courseId)
+      courses[i].lessons = lessons
+    }
+    return{
+      courses
+    }
+  }
+  @Get('getDetailMultipleCourse/:courseId')
+  @HttpCode(HttpStatus.OK)
+  async getDetailMultipleCourse(@Param('courseId') courseId: string){
+    const multipleCourse = await this.studentService.getDetailMultipleCourse(courseId)
+    return{
+      multipleCourse
     }
   }
   @Get('getCoursePaid/:courseId')
@@ -69,4 +93,5 @@ export class StudentController {
     await this.studentService.patchInformation(userId,name, dob,address,phone,gender)
     return{message:'Thành công'}
   }
+  
 }
