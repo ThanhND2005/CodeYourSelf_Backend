@@ -1,5 +1,5 @@
 import { Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
-import { CreateTeacherDto, Student, Teacher } from './dto/create-teacher.dto';
+import { CreateTeacherDto, MultipleCourse, SingleCourse, Student, Teacher } from './dto/create-teacher.dto';
 import { UpdateTeacherDto } from './dto/update-teacher.dto';
 import * as mysql from 'mysql2/promise'
 import * as Minio from 'minio'
@@ -122,6 +122,17 @@ export class TeacherService {
       throw new InternalServerErrorException('lỗi hệ thống')
     }
   }
+  async getStudentsByTeacher(teacherId) : Promise<Student[]>{
+    try {
+      const [rows] = await this.db.execute<Student[]>(
+        'SELECT s.userId, s.name, c.courseId, c.name as courseName FROM Student s JOIN Payment p on p.studentId = s.userId JOIN Course c on c.courseId = p.courseId WHERE c.deleted=0 AND s.deleted=0 AND p.status IS NOT NULL AND c.teacherId = ?',[teacherId]
+      )
+      return rows
+    } catch (error) {
+      console.error(error)
+      throw new InternalServerErrorException('lỗi hệ thống')
+    }
+  }
   async getNotifications(userId: string): Promise<NotificationRow[]> {
       const [rows] = await this.db.execute<NotificationRow[]>(
         `WITH RankedNotifications AS (
@@ -166,5 +177,65 @@ export class TeacherService {
       throw new InternalServerErrorException('lỗi hệ thống')
     }
   }
+  /**
+   * Lấy danh sách Single Courses theo teacherId
+   */
+  async getSingleCoursesByTeacherId(teacherId: string) : Promise<SingleCourse[]> {
+    // Câu lệnh SQL (bỏ qua các record đã bị xóa mềm deleted = 1)
+    const query = `
+      SELECT 
+        courseId, 
+        name, 
+        cost, 
+        summary, 
+        deleted, 
+        teacherId, 
+        rate, 
+        multipleCourseId, 
+        status, 
+        imageUrl
+      FROM Course 
+      WHERE teacherId = ? AND deleted = 0
+    `;
 
+    try {
+      // Sử dụng destructuring để lấy rows
+      const [rows] = await this.db.execute<SingleCourse[]>(query, [teacherId]);
+      
+      // rows lúc này là mảng các object khớp với interface SingleCourse (chưa tính totalStudents)
+      return rows; 
+    } catch (error) {
+      // Xử lý lỗi (log, throw exception...)
+      console.error('Error fetching single courses:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Lấy danh sách Multiple Courses theo teacherId
+   */
+  async getMultipleCoursesByTeacherId(teacherId: string) : Promise<MultipleCourse[]> {
+    const query = `
+      SELECT 
+        multipleCourseId, 
+        name, 
+        cost, 
+        sumary AS summary, /* Alias cột sumary bị sai chính tả trong DB thành summary giống mock data */
+        deleted, 
+        rate, 
+        teacherId, 
+        imageUrl
+      FROM MultipleCourse 
+      WHERE teacherId = ? AND deleted = 0
+    `;
+
+    try {
+      const [rows] = await this.db.execute<MultipleCourse[]>(query, [teacherId]);
+      
+      return rows;
+    } catch (error) {
+      console.error('Error fetching multiple courses:', error);
+      throw error;
+    }
+  }
 }

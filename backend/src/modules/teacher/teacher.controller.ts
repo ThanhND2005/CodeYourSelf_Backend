@@ -63,10 +63,30 @@ export class TeacherController {
     const students  = await this.teacherService.getStudents(courseId)
     return{students}
   }
+  @Get('getStudentsByTeacher/:teacherId')
+  @HttpCode(HttpStatus.OK)
+  async getStudentsByTeacher(@Param('teacherId') teacherId: string){
+    const students  = await this.teacherService.getStudentsByTeacher(teacherId)
+    return{students}
+  }
   @Post('postComment/:courseId')
   @HttpCode(HttpStatus.OK)
   async postComment(@Param('courseId') courseId: string, @Body() {userId, content}: any){
     await this.teacherService.postComment(courseId,userId,content,new Date())
     return{message:'ok'}
+  }
+  @Get('getSingleCourses/:teacherId')
+  @HttpCode(HttpStatus.OK)
+  async getSingleCourses(@Param('teacherId') teacherId: string){
+    const singleCourses = await this.teacherService.getSingleCoursesByTeacherId(teacherId)
+    console.log(singleCourses)
+    return{singleCourses}
+  }
+  @Get('getMultipleCourses/:teacherId')
+  @HttpCode(HttpStatus.OK)
+  async getMultipleCourses(@Param('teacherId') teacherId: string){
+    const multipleCourses = await this.teacherService.getMultipleCoursesByTeacherId(teacherId)
+    console.log(multipleCourses)
+    return{multipleCourses}
   }
 }

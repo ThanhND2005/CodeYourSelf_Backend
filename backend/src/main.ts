@@ -9,10 +9,11 @@ async function bootstrap() {
   logger: ['log', 'error', 'warn', 'debug', 'verbose'],
 });
   app.enableCors({
-    origin :'http://localhost:5173',
+    origin :true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   })
+
   console.log('2')
   app.use(cookieParser())
   console.log('3')
