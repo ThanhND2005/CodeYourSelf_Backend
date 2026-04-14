@@ -9,7 +9,8 @@ export interface Teacher extends mysql.RowDataPacket{
     gender: string,
     createdAt: string,
     bankName: string,
-    bankAccount: string
+    bankAccount: string,
+    avatarUrl: string
 }
 export interface Student extends mysql.RowDataPacket{
     userId : string,
@@ -17,4 +18,26 @@ export interface Student extends mysql.RowDataPacket{
     couseId: string, 
     courseName: string,
     
+}
+export interface SingleCourse extends mysql.RowDataPacket{
+    courseId: string, 
+        name: string, 
+        cost: number, 
+        summary:string, 
+        deleted:number, 
+        teacherId:string, 
+        rate:number, 
+        multipleCourseId:string, 
+        status:string, 
+        imageUrl:string
+}
+export interface MultipleCourse extends mysql.RowDataPacket{
+    multipleCourseId: string, 
+        name:string, 
+        cost:number, 
+        summary: string, 
+        deleted:number, 
+        rate: number, 
+        teacherId: string, 
+        imageUrl:string
 }
