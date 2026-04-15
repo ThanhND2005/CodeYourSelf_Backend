@@ -110,7 +110,7 @@ export class AuthController {
   @HttpCode(HttpStatus.CREATED)
   async signup(@Body() {name, address, dob,gender,username,password, role} : SignupDto){
     try {
-      console.log(username)
+      
       const account = await this.authService.checkAccount(username)
       if(account)
       {
@@ -121,7 +121,7 @@ export class AuthController {
       if(role == "teacher")
       {
         const user = await this.authService.getAccount(username,role)
-        console.log(user)
+    
         await this.authService.postTeacher(user.userId,name, dob,address,gender,new Date())
       }
       else if(role =="student")
