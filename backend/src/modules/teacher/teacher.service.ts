@@ -4,7 +4,7 @@ import { UpdateTeacherDto } from './dto/update-teacher.dto';
 import * as mysql from 'mysql2/promise'
 import * as Minio from 'minio'
 import { NotificationRow } from '../admin/admin.service';
-
+import { randomUUID } from 'node:crypto';
 @Injectable()
 export class TeacherService {
   private readonly minioClient: Minio.Client
@@ -152,7 +152,7 @@ export class TeacherService {
   async getNotifications(userId: string): Promise<NotificationRow[]> {
     const [rows] = await this.db.execute<NotificationRow[]>(
       `WITH RankedNotifications AS (
-      SELECT 
+      SELECT  
           m.senderId, 
           m.receiverId, 
           m.notificationId,
@@ -254,4 +254,54 @@ export class TeacherService {
       throw error;
     }
   }
+  async createNotification(
+    title: string,           
+    content: string,         
+    receiverRole: string,    
+    senderId: string,        
+    senderRole: string,      
+    receiverId: string      
+  ): Promise<void> {
+  
+     // Tạo UUID cho khóa chính varchar(36)
+    const notificationId = randomUUID();
+    try {
+      // Bắt đầu giao dịch để đảm bảo dữ liệu đồng nhất ở cả 2 bảng
+      await this.db.beginTransaction();
+
+      // 1. Lưu vào bảng 'Notification' (image_fd73fd.png)
+      // Các cột: notificationId, title, content, createdAt, deleted
+      await this.db.execute(
+        `INSERT INTO Notification (notificationId, title, content, createdAt, deleted) 
+         VALUES (?, ?, ?, NOW(), 0)`,
+        [notificationId, title, content]
+      );
+
+      // 2. Lưu vào bảng 'NotificationManagement' (image_fd76a9.png)
+      // Các cột: notificationId, senderId, senderRole, receiverId, receiverRole, deleted
+      await this.db.execute(
+        `INSERT INTO NotificationManagement (notificationId, senderId, senderRole, receiverId, receiverRole, deleted) 
+         VALUES (?, ?, ?, ?, ?, 0)`,
+        [
+          notificationId,
+          senderId,
+          senderRole,
+          receiverId,
+          receiverRole
+        ]
+      );
+
+      // Hoàn tất giao dịch
+      await this.db.commit();
+
+      
+
+    } catch (error) {
+      // Nếu có bất kỳ lỗi nào, hoàn tác các thay đổi
+      await this.db.rollback();
+      console.error('Lỗi khi tạo thông báo:', error);
+      throw error;
+    
+  }
+}
 }
