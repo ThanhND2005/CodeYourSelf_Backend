@@ -25,7 +25,7 @@ export class AuthService {
   }
   async postSession(userid: string, refreshtoken : string, createat : Date, expireat : Date) : Promise<void>{
     try {
-      console.log('Dữ liệu session:', { userid, refreshtoken, createat,expireat });
+      
       await this.db.execute('INSERT INTO Session (userid, refreshtoken, createat, expireat) VALUES (?,?,?,?)',[userid,refreshtoken,createat,expireat] )
     } catch (error) {
       console.error(error)

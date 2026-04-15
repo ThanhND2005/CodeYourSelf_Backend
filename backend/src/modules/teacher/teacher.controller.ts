@@ -1,15 +1,9 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
 import { TeacherService } from './teacher.service';
-import { CreateTeacherDto } from './dto/create-teacher.dto';
-import { UpdateTeacherDto } from './dto/update-teacher.dto';
+
 import { FileInterceptor } from '@nestjs/platform-express';
 
-interface User extends Request{
-  user:{
-    userId: string,
-    role: string
-  }
-}
+
 @Controller('apis/teacher')
 export class TeacherController {
   constructor(private readonly teacherService: TeacherService) {}
@@ -79,14 +73,14 @@ export class TeacherController {
   @HttpCode(HttpStatus.OK)
   async getSingleCourses(@Param('teacherId') teacherId: string){
     const singleCourses = await this.teacherService.getSingleCoursesByTeacherId(teacherId)
-    console.log(singleCourses)
+    
     return{singleCourses}
   }
   @Get('getMultipleCourses/:teacherId')
   @HttpCode(HttpStatus.OK)
   async getMultipleCourses(@Param('teacherId') teacherId: string){
     const multipleCourses = await this.teacherService.getMultipleCoursesByTeacherId(teacherId)
-    console.log(multipleCourses)
+    
     return{multipleCourses}
   }
 }
