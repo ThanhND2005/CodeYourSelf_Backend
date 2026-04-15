@@ -155,7 +155,7 @@ export class AuthController {
       }
       
       const account = await this.authService.getAccountById(session.userId)
-      const accessToken = jwt.sign({userid: account.userId,role: account.userrole}, process.env.ACCESS_TOKEN_SECRET as string, {expiresIn:'30m'})
+      const accessToken = jwt.sign({userId: account.userId,role: account.userrole}, process.env.ACCESS_TOKEN_SECRET as string, {expiresIn:'30m'})
       return {accessToken}
     } catch (error) {
       console.error(error)

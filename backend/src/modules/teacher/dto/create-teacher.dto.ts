@@ -41,3 +41,11 @@ export interface MultipleCourse extends mysql.RowDataPacket{
         teacherId: string, 
         imageUrl:string
 }
+interface CreateNotification extends mysql.RowDataPacket{
+  senderId: string;
+  senderRole: string;
+  receiverId: string;
+  receiverRole: string;
+  title: string;
+  content: string;
+}
