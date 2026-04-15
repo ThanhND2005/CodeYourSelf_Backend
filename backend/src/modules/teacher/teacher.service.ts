@@ -78,6 +78,46 @@ export class TeacherService {
       throw new InternalServerErrorException('lỗi hệ thống')
     }
   }
+  async uploadImages2(file: Express.Multer.File, courseId: string): Promise<string> {
+    const fileName = `${Date.now()}-${file.originalname}`;
+    try {
+      await this.minioClient.putObject(
+        this.bucketName,
+        fileName,
+        file.buffer,
+        file.size,
+        { 'Content-Type': file.mimetype }
+      )
+      const avatarUrl = `http://localhost:9000/${this.bucketName}/${fileName}`;
+      await this.db.execute(
+        'UPDATE Course SET imageUrl=? WHERE courseId=?', [avatarUrl, courseId]
+      )
+      return avatarUrl
+    } catch (error) {
+      console.error(error)
+      throw new InternalServerErrorException('lỗi hệ thống')
+    }
+  }
+  async uploadImages3(file: Express.Multer.File, courseId: string): Promise<string> {
+    const fileName = `${Date.now()}-${file.originalname}`;
+    try {
+      await this.minioClient.putObject(
+        this.bucketName,
+        fileName,
+        file.buffer,
+        file.size,
+        { 'Content-Type': file.mimetype }
+      )
+      const avatarUrl = `http://localhost:9000/${this.bucketName}/${fileName}`;
+      await this.db.execute(
+        'UPDATE MultipleCourse SET imageUrl=? WHERE multipleCourseId=?', [avatarUrl, courseId]
+      )
+      return avatarUrl
+    } catch (error) {
+      console.error(error)
+      throw new InternalServerErrorException('lỗi hệ thống')
+    }
+  }
   async postCourse(name: string, cost: number, summary: string, teacherId: string, rate: number): Promise<void> {
     try {
       await this.db.execute(
@@ -183,6 +223,40 @@ export class TeacherService {
     )
     return rows
   }
+  async getNotifications2(userId: string): Promise<NotificationRow[]> {
+    const [rows] = await this.db.execute<NotificationRow[]>(
+      `WITH RankedNotifications AS (
+      SELECT  
+          m.senderId, 
+          m.receiverId, 
+          m.notificationId,
+          n.title, 
+          n.content,
+          n.createdAt,
+          
+          ROW_NUMBER() OVER(
+              PARTITION BY m.notificationId 
+              ORDER BY n.createdAt DESC
+          ) as rn
+      FROM NotificationManagement m
+      JOIN Account a ON a.userId = m.receiverId
+      JOIN Notification n ON n.notificationId = m.notificationId 
+      WHERE a.userId = ? AND m.deleted =0
+  )
+  
+  SELECT 
+      senderId, 
+      receiverId, 
+      notificationId, 
+      title, 
+      content, 
+      createdAt 
+  FROM RankedNotifications
+  WHERE rn = 1
+  ORDER BY createdat DESC;`, [userId]
+    )
+    return rows
+  }
   async postComment(courseId: string, userId: string, content: string, createdAt: Date): Promise<void> {
     try {
       await this.db.execute(
@@ -255,19 +329,22 @@ export class TeacherService {
     }
   }
   async createNotification(
-    title: string,           
-    content: string,         
-    receiverRole: string,    
-    senderId: string,        
-    senderRole: string,      
-    receiverId: string      
+    title: string,
+    content: string,
+
+    senderId: string,
+
+    receiverId: string,
+    notificationId: string
   ): Promise<void> {
-  
-     // Tạo UUID cho khóa chính varchar(36)
-    const notificationId = randomUUID();
+
+    // Tạo UUID cho khóa chính varchar(36)
+    
+    const connection = await this.db.getConnection()
     try {
       // Bắt đầu giao dịch để đảm bảo dữ liệu đồng nhất ở cả 2 bảng
-      await this.db.beginTransaction();
+      
+      await connection.beginTransaction();
 
       // 1. Lưu vào bảng 'Notification' (image_fd73fd.png)
       // Các cột: notificationId, title, content, createdAt, deleted
@@ -285,23 +362,33 @@ export class TeacherService {
         [
           notificationId,
           senderId,
-          senderRole,
+          'teacher',
           receiverId,
-          receiverRole
+          'student'
         ]
       );
 
       // Hoàn tất giao dịch
-      await this.db.commit();
+      await connection.commit();
 
-      
+
 
     } catch (error) {
       // Nếu có bất kỳ lỗi nào, hoàn tác các thay đổi
-      await this.db.rollback();
+      await connection.rollback();
       console.error('Lỗi khi tạo thông báo:', error);
       throw error;
-    
+
+    }
   }
-}
+  async DeleteNotification(notificationId: string) : Promise<void>{
+    try {
+      await this.db.execute(
+        'UPDATE NotificationManagement SET deleted=1 WHERE notificationId=? ',[notificationId]
+      )
+    } catch (error) {
+      console.error('Error fetching multiple courses:', error);
+      throw error;
+    }
+  }
 }

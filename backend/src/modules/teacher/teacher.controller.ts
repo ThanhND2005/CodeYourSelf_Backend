@@ -2,7 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus
 import { TeacherService } from './teacher.service';
 
 import { FileInterceptor } from '@nestjs/platform-express';
-
+import { randomUUID } from 'node:crypto';
 
 @Controller('apis/teacher')
 export class TeacherController {
@@ -16,6 +16,32 @@ export class TeacherController {
       throw new BadRequestException('Vui long chon anh dai dien')
     }
     const url = await this.teacherService.uploadImages(file, userId)
+    return{
+      url
+    }
+  }
+  @Patch('patchImageCourse/:courseId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseInterceptors(FileInterceptor('image'))
+  async patchImageCourse (@Param('courseId') courseId: string, @UploadedFile() file: Express.Multer.File){
+    if(!file)
+    {
+      throw new BadRequestException('Vui long chon anh dai dien')
+    }
+    const url = await this.teacherService.uploadImages2(file, courseId)
+    return{
+      url
+    }
+  }
+  @Patch('patchImageMultipleCourse/:courseId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @UseInterceptors(FileInterceptor('image2'))
+  async patchImageMultipleCourse (@Param('courseId') courseId: string, @UploadedFile() file: Express.Multer.File){
+    if(!file)
+    {
+      throw new BadRequestException('Vui long chon anh dai dien')
+    }
+    const url = await this.teacherService.uploadImages3(file, courseId)
     return{
       url
     }
@@ -82,5 +108,30 @@ export class TeacherController {
     const multipleCourses = await this.teacherService.getMultipleCoursesByTeacherId(teacherId)
     
     return{multipleCourses}
+  }
+  @Post('postNotification/:teacherId')
+  @HttpCode(HttpStatus.CREATED)
+  async postNotification(@Param('teacherId') teacherId: string, @Body() {title, content} : any){
+    const students = await this.teacherService.getStudentsByTeacher(teacherId)
+    const uniqueStudents = students.filter((student, index, self) => index === self.findIndex((t) => t.userId === student.userId))
+    const notificationId = randomUUID();
+    for(let i  =0;i< uniqueStudents.length;i++)
+    {
+        await this.teacherService.createNotification(title, content, teacherId, students[i].userId,notificationId)
+    }
+    return{message:'ok'}
+  }
+  @Get('getNotifications/:teacherId')
+  @HttpCode(HttpStatus.OK)
+  async getNotification(@Param('teacherId') teacherId: string){
+    const notifications1= await this.teacherService.getNotifications(teacherId)
+    const notifications2= await this.teacherService.getNotifications2(teacherId)
+    const notifications = notifications1.concat(notifications2)
+    return{notifications}
+  }
+  @Patch('deleteNotification/:notifId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteNotification(@Param('notifId') notifId : string){
+    await this.teacherService.DeleteNotification(notifId)
   }
 }
