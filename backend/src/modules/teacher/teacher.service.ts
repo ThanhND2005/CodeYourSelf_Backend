@@ -184,6 +184,16 @@ export class TeacherService {
       throw new InternalServerErrorException('lỗi hệ thống')
     }
   }
+  async deleteCourse2(courseId: string): Promise<void> {
+    try {
+      await this.db.execute(
+        'UPDATE MultipleCourse SET deleted=1 WHERE multipleCourseId=?', [courseId]
+      )
+    } catch (error) {
+      console.error(error)
+      throw new InternalServerErrorException('lỗi hệ thống')
+    }
+  }
   async patchCourse(courseId: string, name: string, cost: number, summary: string): Promise<void> {
     try {
       await this.db.execute(
@@ -207,7 +217,7 @@ export class TeacherService {
   async getStudents(courseId): Promise<Student[]> {
     try {
       const [rows] = await this.db.execute<Student[]>(
-        'SELECT s.userId, s.name, c.courseId, c.name as courseName FROM Student s JOIN Payment p on p.studentId = s.userId JOIN Course c on c.courseId = p.courseId WHERE c.deleted=0 AND s.deleted=0 AND p.status IS NOT NULL AND p.courseId = ?', [courseId]
+        'SELECT cm.*, s.name,s.avatarUrl FROM CourseManagement cm JOIN Student s ON s.userId = cm.studentId WHERE cm.deleted=0 AND s.deleted=0 AND cm.courseId=?', [courseId]
       )
       return rows
     } catch (error) {
@@ -351,7 +361,7 @@ export class TeacherService {
         deleted, 
         rate, 
         teacherId, 
-        imageUrl
+        imageUrl,status
       FROM MultipleCourse 
       WHERE teacherId = ? AND deleted = 0
     `;
@@ -427,5 +437,97 @@ export class TeacherService {
       console.error('Error fetching multiple courses:', error);
       throw error;
     }
+  }
+  async GetMonthIncomeStats(teacherId: string) {
+    const [paymentRows] = await this.db.execute<mysql.RowDataPacket[]>(
+      `SELECT 
+        p.periodYear,
+        p.periodMonth,
+        COUNT(p.paymentId) as totalCoursesSold,
+        CAST(SUM(p.amount) as UNSIGNED) as totalProfit,
+        COUNT(DISTINCT p.studentId) as newStudents
+       FROM Payment p
+       JOIN Course c ON p.courseId = c.courseId
+       WHERE p.deleted = 0 AND p.status = 'SUCCESS' AND c.teacherId=?
+       GROUP BY p.periodYear, p.periodMonth
+        `,[teacherId]
+    )
+    const [salaryRows] = await this.db.execute<mysql.RowDataPacket[]>(
+      `SELECT 
+        periodYear,
+        periodMonth,
+        CAST(SUM(amount) AS UNSIGNED) as commission
+       FROM Salary
+       WHERE deleted=0 AND teacherId=?
+       GROUP BY periodYear, periodMonth`,[teacherId]
+    )
+    const [bestCourseRows] = await this.db.execute<mysql.RowDataPacket[]>(
+      `WITH CourseSales AS (
+        SELECT 
+          p.periodYear, 
+          p.periodMonth, 
+          p.courseId, 
+          COUNT(p.paymentId) as salesCount,
+          ROW_NUMBER() OVER(PARTITION BY p.periodYear, p.periodMonth ORDER BY COUNT(p.paymentId) DESC) as rn
+        FROM Payment p
+        JOIN Course c ON p.courseId = c.courseId
+        WHERE p.deleted = 0 
+          AND p.status = 'SUCCESS' 
+          AND c.teacherId = ?
+        GROUP BY p.periodYear, p.periodMonth, p.courseId
+      )
+      SELECT 
+        cs.periodYear, 
+        cs.periodMonth, 
+        cs.salesCount as highestCourseSales,
+        c.courseId, c.name, c.cost, c.summary, c.rate, c.status, c.imageUrl
+      FROM CourseSales cs
+      JOIN Course c ON cs.courseId = c.courseId
+      WHERE cs.rn = 1`,[teacherId]
+    )
+    const currentDate = new Date()
+    const currentMonth = currentDate.getMonth() +1
+    const currentYear = currentDate.getFullYear()
+
+    const stats = paymentRows.map((pRow) =>{
+      const year = pRow.periodYear
+      const month = pRow.periodMonth 
+      const sRow = salaryRows.find((s) => s.periodYear === year && s.periodMonth === month)
+      const bcRow = bestCourseRows.find((bc) => bc.periodYear === year && bc.periodMonth === month)
+      return {
+        id: `stat-${year}-${month}`,
+        periodMonth: month,
+        periodYear: year,
+        isCurrent: year === currentYear && month === currentMonth,
+        totalCoursesSold: Number(pRow.totalCoursesSold) || 0,
+        totalProfit: Number(pRow.totalProfit) || 0,
+        commission: sRow ? Number(sRow.commission) : 0,
+        highestCourseSales: bcRow ? Number(bcRow.highestCourseSales) : 0,
+        newStudents: Number(pRow.newStudents) || 0,
+        bestSellingCourse: bcRow
+          ? {
+              courseId: bcRow.courseId,
+              name: bcRow.name,
+              cost: Number(bcRow.cost),
+              summary: bcRow.summary,
+              rate: bcRow.rate,
+              status: bcRow.status,
+              imageUrl: bcRow.imageUrl,
+            }
+          : null,
+
+      }
+    })
+    return stats.sort((a, b) => {
+      if (a.periodYear === b.periodYear) {
+        return b.periodMonth - a.periodMonth;
+      }
+      return b.periodYear - a.periodYear;
+    });
+  }
+  async deleteStudent(courseId: string, studentId: string) {
+    await this.db.execute(
+      'UPDATE CourseManagement SET deleted=1 WHERE courseId=? AND studentId=?',[courseId,studentId]
+    )
   }
 }

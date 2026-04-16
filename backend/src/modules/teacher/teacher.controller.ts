@@ -3,6 +3,7 @@ import { TeacherService } from './teacher.service';
 
 import { FileInterceptor } from '@nestjs/platform-express';
 import { randomUUID } from 'node:crypto';
+import { patch } from 'axios';
 
 @Controller('apis/teacher')
 export class TeacherController {
@@ -113,6 +114,12 @@ export class TeacherController {
     await this.teacherService.deleteCourse(courseId)
     return{message:'ok'}
   }
+  @Patch('deleteMultipleCourse/:courseId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteMultipleCourse(@Param('courseId') courseId: string){
+    await this.teacherService.deleteCourse2(courseId)
+    return{message:'ok'}
+  }
   @Get('getStudents/:courseId')
   @HttpCode(HttpStatus.OK)
   async getStudents(@Param('courseId') courseId: string){
@@ -169,5 +176,16 @@ export class TeacherController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async deleteNotification(@Param('notifId') notifId : string){
     await this.teacherService.DeleteNotification(notifId)
+  }
+  @Get('monthly-stats/:teacherId')
+  @HttpCode(HttpStatus.OK)
+  async getStats(@Param('teacherId') teacherId: string){
+    const stats = await this.teacherService.GetMonthIncomeStats(teacherId)
+    return{stats}
+  }
+  @Patch('deleteStudent')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteStudent(@Body() {courseId, studentId} : any) {
+    await this.teacherService.deleteStudent(courseId, studentId)
   }
 }
