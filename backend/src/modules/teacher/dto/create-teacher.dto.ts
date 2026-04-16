@@ -13,10 +13,13 @@ export interface Teacher extends mysql.RowDataPacket{
     avatarUrl: string
 }
 export interface Student extends mysql.RowDataPacket{
-    userId : string,
-    name: string,
-    couseId: string, 
-    courseName: string,
+    courseId: string, 
+    studentId: string, 
+    status: string, 
+    createdAt : Date,
+    progress: number, 
+    name: string, 
+    avatarUrl: string
     
 }
 export interface SingleCourse extends mysql.RowDataPacket{
@@ -39,15 +42,8 @@ export interface MultipleCourse extends mysql.RowDataPacket{
         deleted:number, 
         rate: number, 
         teacherId: string, 
-        imageUrl:string
-}
-interface CreateNotification extends mysql.RowDataPacket{
-  senderId: string;
-  senderRole: string;
-  receiverId: string;
-  receiverRole: string;
-  title: string;
-  content: string;
+        imageUrl:string,
+        status: string,
 }
 export interface Video extends mysql.RowDataPacket{
     courseId: string, 

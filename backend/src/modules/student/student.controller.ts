@@ -93,5 +93,4 @@ export class StudentController {
     await this.studentService.patchInformation(userId,name, dob,address,phone,gender)
     return{message:'Thành công'}
   }
-  
 }
