@@ -46,6 +46,18 @@ export class TeacherController {
       url
     }
   }
+  @Patch('addCourse/:multipleCourseId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async addCourse(@Param('multipleCourseId') multipleCourseId : string, @Body() {courseId} : any) {
+    await this.teacherService.addCourse(courseId,multipleCourseId)
+    return{message:"ok"}
+  }
+  @Patch('removeCourse')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async removeCourse(@Body() {courseId} : any) {
+    await this.teacherService.removeCourse(courseId)
+    return{message:"ok"}
+  }
   @Patch('patchInformation/:userId')
   @HttpCode(HttpStatus.NO_CONTENT)
   async patchInformation (@Param('userId') userId: string,@Body() {name, dob, address,phone, gender, bankName, bankAccount}: any){
@@ -58,10 +70,28 @@ export class TeacherController {
     const teacher = await this.teacherService.getInformation(userId)
     return{teacher}
   }
+  @Post('postMultipleCourse/:userId')
+  @HttpCode(HttpStatus.CREATED)
+  async posMultipletCourse(@Param('userId') userId: string,@Body() {name, cost, summary} : any) {
+    await this.teacherService.postMultipleCourse(name,cost,summary,userId,0)
+    return{message:'ok'}
+  }
   @Post('postCourse/:userId')
   @HttpCode(HttpStatus.CREATED)
   async postCourse(@Param('userId') userId: string,@Body() {name, cost, summary} : any) {
     await this.teacherService.postCourse(name,cost,summary,userId,0)
+    return{message:'ok'}
+  }
+  @Patch('patchCourse/:courseId')
+  @HttpCode(HttpStatus.CREATED)
+  async patchCourse(@Param('courseId') courseId: string,@Body() {name, cost, summary} : any) {
+    await this.teacherService.patchCourse(courseId,name,cost,summary)
+    return{message:'ok'}
+  }
+  @Patch('patchMultipleCourse/:courseId')
+  @HttpCode(HttpStatus.CREATED)
+  async patchMultipleCourse(@Param('courseId') courseId: string,@Body() {name, cost, summary} : any) {
+    await this.teacherService.patchMultipleCourse(courseId,name,cost,summary)
     return{message:'ok'}
   }
   @Post('addVideo/:courseId')
@@ -70,6 +100,12 @@ export class TeacherController {
   async addVideo(@Param('courseId') courseId: string, @UploadedFile() file : Express.Multer.File, @Body() {name}:any){
     await this.teacherService.addVideo(courseId,file,name)
     return{message:'ok'}
+  }
+  @Get('getVideo/:courseId')
+  @HttpCode(HttpStatus.OK)
+  async getVideo(@Param('courseId') courseId: string){
+    const videos = await this.teacherService.getVideo(courseId)
+    return{videos}
   }
   @Patch('deleteCourse/:courseId')
   @HttpCode(HttpStatus.NO_CONTENT)

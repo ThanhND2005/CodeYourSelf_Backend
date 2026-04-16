@@ -1,5 +1,5 @@
 import { Inject, Injectable, InternalServerErrorException } from '@nestjs/common';
-import { CreateTeacherDto, MultipleCourse, SingleCourse, Student, Teacher } from './dto/create-teacher.dto';
+import { CreateTeacherDto, MultipleCourse, SingleCourse, Student, Teacher, Video } from './dto/create-teacher.dto';
 import { UpdateTeacherDto } from './dto/update-teacher.dto';
 import * as mysql from 'mysql2/promise'
 import * as Minio from 'minio'
@@ -121,7 +121,37 @@ export class TeacherService {
   async postCourse(name: string, cost: number, summary: string, teacherId: string, rate: number): Promise<void> {
     try {
       await this.db.execute(
-        'INSERT INTO Course (name, cost,summary,teacherId,rate) VALUES (?,?,?,?,?)', [name, cost, summary, teacherId, rate]
+        `INSERT INTO Course (name, cost,summary,teacherId,rate,status) VALUES (?,?,?,?,?,'Chờ duyệt')`, [name, cost, summary, teacherId, rate]
+      )
+    } catch (error) {
+      console.error(error)
+      throw new InternalServerErrorException('lỗi hệ thống')
+    }
+  }
+  async postMultipleCourse(name: string, cost: number, summary: string, teacherId: string, rate: number): Promise<void> {
+    try {
+      await this.db.execute(
+        'INSERT INTO MultipleCourse (name, cost,sumary,teacherId,rate) VALUES (?,?,?,?,?)', [name, cost, summary, teacherId, rate]
+      )
+    } catch (error) {
+      console.error(error)
+      throw new InternalServerErrorException('lỗi hệ thống')
+    }
+  }
+  async addCourse(courseId: string, multipleCourseId: string) : Promise<void>{
+    try {
+      await this.db.execute(
+        `UPDATE Course SET multipleCourseId=? WHERE courseId=?`,[multipleCourseId,courseId]
+      )
+    } catch (error) {
+      console.error(error)
+      throw new InternalServerErrorException('lỗi hệ thống')
+    }
+  }
+  async removeCourse(courseId: string) : Promise<void>{
+    try {
+      await this.db.execute(
+        `UPDATE Course SET multipleCourseId=NULL WHERE courseId=?`,[courseId]
       )
     } catch (error) {
       console.error(error)
@@ -147,6 +177,18 @@ export class TeacherService {
       throw new InternalServerErrorException('lỗi hệ thống')
     }
   }
+  async getVideo (courseId: string) : Promise<Video[]>{
+    try {
+     
+      const [rows] = await this.db.execute<Video[]>(
+        `SELECT * FROM CourseVideo WHERE courseId=?`,[courseId]
+      )
+      return rows
+    } catch (error) {
+      console.error(error)
+      throw new InternalServerErrorException('lỗi hệ thống')
+    }
+  }
   async deleteCourse(courseId: string): Promise<void> {
     try {
       await this.db.execute(
@@ -161,6 +203,16 @@ export class TeacherService {
     try {
       await this.db.execute(
         'UPDATE Course SET name=?,cost=?,summary=? WHERE courseId=?', [name, cost, summary, courseId]
+      )
+    } catch (error) {
+      console.error(error)
+      throw new InternalServerErrorException('lỗi hệ thống')
+    }
+  }
+  async patchMultipleCourse(courseId: string, name: string, cost: number, summary: string): Promise<void> {
+    try {
+      await this.db.execute(
+        'UPDATE MultipleCourse SET name=?,cost=?,sumary=? WHERE multipleCourseId=?', [name, cost, summary, courseId]
       )
     } catch (error) {
       console.error(error)

@@ -49,3 +49,9 @@ interface CreateNotification extends mysql.RowDataPacket{
   title: string;
   content: string;
 }
+export interface Video extends mysql.RowDataPacket{
+    courseId: string, 
+    name: string,
+    videoId: string, 
+    videoUrl: string, 
+}
