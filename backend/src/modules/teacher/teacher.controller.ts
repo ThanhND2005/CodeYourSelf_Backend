@@ -158,10 +158,8 @@ export class TeacherController {
     const students = await this.teacherService.getStudentsByTeacher(teacherId)
     const uniqueStudents = students.filter((student, index, self) => index === self.findIndex((t) => t.userId === student.userId))
     const notificationId = randomUUID();
-    for(let i  =0;i< uniqueStudents.length;i++)
-    {
-        await this.teacherService.createNotification(title, content, teacherId, students[i].userId,notificationId)
-    }
+    const uniqueStudentIds = uniqueStudents.map(student => student.studentId)
+    await this.teacherService.createNotification(title,content,teacherId,'teacher',uniqueStudentIds,'student',notificationId)
     return{message:'ok'}
   }
   @Get('getNotifications/:teacherId')
