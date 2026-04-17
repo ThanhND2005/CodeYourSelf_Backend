@@ -376,58 +376,64 @@ export class TeacherService {
     }
   }
   async createNotification(
-    title: string,
-    content: string,
+  title: string,
+  content: string,
+  senderId: string,
+  senderRole: string, 
+  receiverIds: string[], 
+  receiverRole: string, 
+  notificationId: string
+): Promise<void> {
 
-    senderId: string,
+  const connection = await this.db.getConnection();
+  
+  try {
+    // Bắt đầu giao dịch
+    await connection.beginTransaction();
 
-    receiverId: string,
-    notificationId: string
-  ): Promise<void> {
+    // 1. Lưu vào bảng 'Notification' (Chỉ insert 1 lần duy nhất)
+    await connection.execute(
+      `INSERT INTO Notification (notificationId, title, content, createdAt, deleted) 
+       VALUES (?, ?, ?, NOW(), 0)`,
+      [notificationId, title, content]
+    );
 
-    // Tạo UUID cho khóa chính varchar(36)
-    
-    const connection = await this.db.getConnection()
-    try {
-      // Bắt đầu giao dịch để đảm bảo dữ liệu đồng nhất ở cả 2 bảng
-      
-      await connection.beginTransaction();
+    // 2. Lưu vào bảng 'NotificationManagement' cho từng người nhận
+    if (receiverIds && receiverIds.length > 0) {
+     
+      const insertManagementPromises = receiverIds.map(receiverId => {
+        return connection.execute(
+          `INSERT INTO NotificationManagement (notificationId, senderId, senderRole, receiverId, receiverRole, deleted) 
+           VALUES (?, ?, ?, ?, ?, 0)`,
+          [
+            notificationId,
+            senderId,
+            senderRole, 
+            receiverId,
+            receiverRole
+          ]
+        );
+      });
 
-      // 1. Lưu vào bảng 'Notification' (image_fd73fd.png)
-      // Các cột: notificationId, title, content, createdAt, deleted
-      await this.db.execute(
-        `INSERT INTO Notification (notificationId, title, content, createdAt, deleted) 
-         VALUES (?, ?, ?, NOW(), 0)`,
-        [notificationId, title, content]
-      );
+      await Promise.all(insertManagementPromises);
+    }
 
-      // 2. Lưu vào bảng 'NotificationManagement' (image_fd76a9.png)
-      // Các cột: notificationId, senderId, senderRole, receiverId, receiverRole, deleted
-      await this.db.execute(
-        `INSERT INTO NotificationManagement (notificationId, senderId, senderRole, receiverId, receiverRole, deleted) 
-         VALUES (?, ?, ?, ?, ?, 0)`,
-        [
-          notificationId,
-          senderId,
-          'teacher',
-          receiverId,
-          'student'
-        ]
-      );
+    // Hoàn tất giao dịch
+    await connection.commit();
 
-      // Hoàn tất giao dịch
-      await connection.commit();
+  } catch (error) {
+    // Nếu có bất kỳ lỗi nào, hoàn tác các thay đổi
+    await connection.rollback();
+    console.error('Lỗi khi tạo thông báo:', error);
+    throw error;
 
-
-
-    } catch (error) {
-      // Nếu có bất kỳ lỗi nào, hoàn tác các thay đổi
-      await connection.rollback();
-      console.error('Lỗi khi tạo thông báo:', error);
-      throw error;
-
+  } finally {
+    // Rất quan trọng: Giải phóng connection trả lại cho Pool sau khi dùng xong
+    if (connection && connection.release) {
+      connection.release();
     }
   }
+}
   async DeleteNotification(notificationId: string) : Promise<void>{
     try {
       await this.db.execute(
