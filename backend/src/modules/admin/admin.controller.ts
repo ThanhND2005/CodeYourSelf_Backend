@@ -221,4 +221,45 @@ export class AdminController {
       throw new InternalServerErrorException
     }
   }
+  @Get('getCourses')
+  @HttpCode(HttpStatus.OK)
+  async getCourses () {
+    const courses = await this.adminService.getCourses()
+    return{courses}
+  }
+  @Get('ReceiveNotification')
+  @HttpCode(HttpStatus.OK)
+  async ReceiveNotification () {
+    const receivedNotifications = await this.adminService.getNotificationReceived()
+    return{receivedNotifications}
+  }
+  @Post('postNotification')
+  @HttpCode(HttpStatus.CREATED)
+  async postNotification(@Body() {role, title, content} : any){
+    if(role == "Giáo viên"){
+      const teachers = await this.adminService.getTeachers()
+      const teacherIds = teachers.map(teacher => teacher.userId)
+      const notificationId = randomUUID();
+      await this.adminService.createNotification(title,content,'99fdb54e-27e2-11f1-a6e5-2e8453cbf53b','admin',teacherIds,'teacher',notificationId)
+      return{message:'ok'}
+    }
+    else if(role== "Học sinh"){
+      const students = await this.adminService.getStudents()
+      const studentIds = students.map(student => student.userId as string)
+      const notificationId = randomUUID();
+      await this.adminService.createNotification(title,content,'99fdb54e-27e2-11f1-a6e5-2e8453cbf53b','admin',studentIds,'student',notificationId)
+      return{message:'ok'}
+    }
+    else if(role=="Tất cả"){
+      const teachers = await this.adminService.getTeachers()
+      const teacherIds = teachers.map(teacher => teacher.userId)
+      const students = await this.adminService.getStudents()
+      const studentIds = students.map(student => student.userId as string)
+      const notificationId1 = randomUUID();
+      const notificationId2 = randomUUID();
+      await this.adminService.createNotification(title,content,'99fdb54e-27e2-11f1-a6e5-2e8453cbf53b','admin',teacherIds,'teacher',notificationId1)
+      await this.adminService.createNotification(title,content,'99fdb54e-27e2-11f1-a6e5-2e8453cbf53b','admin',studentIds,'student',notificationId2)
+      return{message:'ok'}
+    }
+  }
 }
