@@ -113,6 +113,20 @@ export class AdminController {
       throw new InternalServerErrorException
     }
   }
+  @Get('getWaitMultipleCourses')
+  @HttpCode(HttpStatus.OK)
+  async getWaitMultipleCourses(){
+    try {
+      const waitMultipleCourses = await this.adminService.getWaitMultipleCourses()
+      return{
+        waitMultipleCourses,
+        message:"Lấy thành công danh sách các khóa học đang chờ"
+      }
+    } catch (error) {
+      console.error(error)
+      throw new InternalServerErrorException
+    }
+  }
   @Get('getStudentBills')
   @HttpCode(HttpStatus.OK)
   async getStudentBills(){
@@ -192,11 +206,37 @@ export class AdminController {
       throw new InternalServerErrorException
     }
   }
+  @Patch('acceptWaitMultipleCourse/:courseId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async acceptWaitMultipleCourse (@Param('courseId') courseId: string){
+    try {
+      await this.adminService.acceptWaitMultipleCourse(courseId)
+      return{
+        message:'Duyệt code thành công'
+      }
+    } catch (error) {
+      console.error(error)
+      throw new InternalServerErrorException
+    }
+  }
   @Delete('denyWaitCourse/:courseId')
   @HttpCode(HttpStatus.NO_CONTENT)
   async denyWaitCourse (@Param('courseId') courseId: string){
     try {
       await this.adminService.denyWaitCourse(courseId)
+      return{
+        message:'Xóa khóa học thành công'
+      }
+    } catch (error) {
+      console.error(error)
+      throw new InternalServerErrorException
+    }
+  }
+  @Delete('denyWaitMultipleCourse/:courseId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async denyWaitMultipleCourse (@Param('courseId') courseId: string){
+    try {
+      await this.adminService.denyWaitMultipleCourse(courseId)
       return{
         message:'Xóa khóa học thành công'
       }
@@ -232,6 +272,11 @@ export class AdminController {
   async ReceiveNotification () {
     const receivedNotifications = await this.adminService.getNotificationReceived()
     return{receivedNotifications}
+  }
+  @Patch('patchTeacher/:teacherId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async patchTeacher(@Param('teacherId') teacherId: string, @Body() {name, dob, address,phone, gender} : any) {
+    await this.adminService.patchTeacher(teacherId,name,dob,address,phone, gender)
   }
   @Post('postNotification')
   @HttpCode(HttpStatus.CREATED)

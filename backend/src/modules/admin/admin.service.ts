@@ -23,7 +23,7 @@ export interface TeacherRow extends mysql.RowDataPacket {
 export interface NotificationRow extends mysql.RowDataPacket {
   senderId: string,
   receiverId: string,
-  receiverRole: string,   
+  receiverRole: string,
   notificationId: string,
   title: string,
   content: string,
@@ -36,6 +36,7 @@ export interface WaitCourseRow extends mysql.RowDataPacket {
   summary: string,
   teacherId: string,
   teacherName: string,
+  imageUrl: string,
 }
 export interface StudentBill extends mysql.RowDataPacket {
   paymentId: string,
@@ -59,11 +60,11 @@ export interface TeacherBill extends mysql.RowDataPacket {
   status: string,
   qrUrl: string
 }
-export interface DashboardNotificationDTO extends mysql.RowDataPacket{
-  id: string;              
-  message: string;         
-  createdAt: string;       
-  senderAvatarUrl: string; 
+export interface DashboardNotificationDTO extends mysql.RowDataPacket {
+  id: string;
+  message: string;
+  createdAt: string;
+  senderAvatarUrl: string;
 }
 
 @Injectable()
@@ -81,10 +82,10 @@ export class AdminService {
       secretKey: 'admin1234'
     })
   }
-  async getNotificationReceived () : Promise<DashboardNotificationDTO[]>{
+  async getNotificationReceived(): Promise<DashboardNotificationDTO[]> {
     try {
       const [rows] = await this.db.execute<DashboardNotificationDTO[]>(
-        `SELECT n.notificationId as id,n.content as message, n.createdAt, s.avatarUrl as senderAvatarUrl FROM Notification n JOIN NotificationManagement nm on nm.notificationId = n.notificationId JOIN Student s on s.userId = nm.senderId WHERE nm.receiverRole='admin'`,[]
+        `SELECT n.notificationId as id,n.content as message, n.createdAt, s.avatarUrl as senderAvatarUrl FROM Notification n JOIN NotificationManagement nm on nm.notificationId = n.notificationId JOIN Student s on s.userId = nm.senderId WHERE nm.receiverRole='admin'`, []
       )
       return rows
     } catch (error) {
@@ -183,7 +184,11 @@ ORDER BY createdat DESC;`, [userId]
     }
   }
   async getWaitCourses(): Promise<WaitCourseRow[]> {
-    const [rows] = await this.db.execute<WaitCourseRow[]>(`SELECT c.courseId, c.name, c.cost,c.summary,c.teacherId, t.name as teacherName FROM Course c JOIN Teacher t on t.userId= c.teacherId WHERE c.deleted=0 AND c.status='Chờ duyệt'`)
+    const [rows] = await this.db.execute<WaitCourseRow[]>(`SELECT c.courseId, c.name, c.cost,c.summary,c.teacherId, t.name as teacherName,c.imageUrl FROM Course c JOIN Teacher t on t.userId= c.teacherId WHERE c.deleted=0 AND c.status='Chờ duyệt'`)
+    return rows
+  }
+  async getWaitMultipleCourses(): Promise<WaitCourseRow[]> {
+    const [rows] = await this.db.execute<WaitCourseRow[]>(`SELECT c.multipleCourseId as courseId, c.name, c.cost,c.sumary as summary,c.teacherId, t.name as teacherName,c.imageUrl FROM MultipleCourse c JOIN Teacher t on t.userId= c.teacherId WHERE c.deleted=0 AND c.status='Chờ duyệt'`)
     return rows
   }
   async getStudentBills(): Promise<StudentBill[]> {
@@ -265,12 +270,22 @@ ORDER BY createdat DESC;`, [userId]
   }
   async acceptWaitCourse(courseId: string): Promise<void> {
     await this.db.execute(
-      `UPDATE Course SET deleted=0 WHERE courseId=?`, [courseId]
+      `UPDATE Course SET deleted=0, status='Đã duyệt' WHERE courseId=?`, [courseId]
+    )
+  }
+  async acceptWaitMultipleCourse(courseId: string): Promise<void> {
+    await this.db.execute(
+      `UPDATE MultipleCourse SET deleted=0, status='Đã duyệt' WHERE multipleCourseId=?`, [courseId]
     )
   }
   async denyWaitCourse(courseId: string): Promise<void> {
     await this.db.execute(
       `DELETE FROM Course WHERE courseId=?`, [courseId]
+    )
+  }
+  async denyWaitMultipleCourse(courseId: string): Promise<void> {
+    await this.db.execute(
+      `DELETE FROM MultipleCourse WHERE multipleCourseId=?`, [courseId]
     )
   }
   async getCourseById(teacherId: string): Promise<StudentBill[]> {
@@ -297,62 +312,72 @@ ORDER BY createdat DESC;`, [userId]
     }
   }
   async createNotification(
-  title: string,
-  content: string,
-  senderId: string,
-  senderRole: string, 
-  receiverIds: string[], 
-  receiverRole: string, 
-  notificationId: string
-): Promise<void> {
+    title: string,
+    content: string,
+    senderId: string,
+    senderRole: string,
+    receiverIds: string[],
+    receiverRole: string,
+    notificationId: string
+  ): Promise<void> {
 
-  const connection = await this.db.getConnection();
-  
-  try {
-    // Bắt đầu giao dịch
-    await connection.beginTransaction();
+    const connection = await this.db.getConnection();
 
-    // 1. Lưu vào bảng 'Notification' (Chỉ insert 1 lần duy nhất)
-    await connection.execute(
-      `INSERT INTO Notification (notificationId, title, content, createdAt, deleted) 
+    try {
+      // Bắt đầu giao dịch
+      await connection.beginTransaction();
+
+      // 1. Lưu vào bảng 'Notification' (Chỉ insert 1 lần duy nhất)
+      await connection.execute(
+        `INSERT INTO Notification (notificationId, title, content, createdAt, deleted) 
        VALUES (?, ?, ?, NOW(), 0)`,
-      [notificationId, title, content]
-    );
+        [notificationId, title, content]
+      );
 
-    // 2. Lưu vào bảng 'NotificationManagement' cho từng người nhận
-    if (receiverIds && receiverIds.length > 0) {
-     
-      const insertManagementPromises = receiverIds.map(receiverId => {
-        return connection.execute(
-          `INSERT INTO NotificationManagement (notificationId, senderId, senderRole, receiverId, receiverRole, deleted) 
+      // 2. Lưu vào bảng 'NotificationManagement' cho từng người nhận
+      if (receiverIds && receiverIds.length > 0) {
+
+        const insertManagementPromises = receiverIds.map(receiverId => {
+          return connection.execute(
+            `INSERT INTO NotificationManagement (notificationId, senderId, senderRole, receiverId, receiverRole, deleted) 
            VALUES (?, ?, ?, ?, ?, 0)`,
-          [
-            notificationId,
-            senderId,
-            senderRole, 
-            receiverId,
-            receiverRole
-          ]
-        );
-      });
+            [
+              notificationId,
+              senderId,
+              senderRole,
+              receiverId,
+              receiverRole
+            ]
+          );
+        });
 
-      await Promise.all(insertManagementPromises);
-    }
+        await Promise.all(insertManagementPromises);
+      }
 
-    // Hoàn tất giao dịch
-    await connection.commit();
+      // Hoàn tất giao dịch
+      await connection.commit();
 
-  } catch (error) {
-    // Nếu có bất kỳ lỗi nào, hoàn tác các thay đổi
-    await connection.rollback();
-    console.error('Lỗi khi tạo thông báo:', error);
-    throw error;
+    } catch (error) {
+      // Nếu có bất kỳ lỗi nào, hoàn tác các thay đổi
+      await connection.rollback();
+      console.error('Lỗi khi tạo thông báo:', error);
+      throw error;
 
-  } finally {
-    // Rất quan trọng: Giải phóng connection trả lại cho Pool sau khi dùng xong
-    if (connection && connection.release) {
-      connection.release();
+    } finally {
+      // Rất quan trọng: Giải phóng connection trả lại cho Pool sau khi dùng xong
+      if (connection && connection.release) {
+        connection.release();
+      }
     }
   }
-}
+  async patchTeacher (teacherId: string, name:string,dob: Date,address: string, phone: string, gender: string ){
+    try {
+      await this.db.execute(
+        `UPDATE Teacher SET name=?,dob=?,address=?,phone=?,gender=? WHERE userId=?`,[name, dob,address,phone, gender,teacherId]
+      )
+    } catch (error) {
+      console.error(error)
+      throw  new InternalServerErrorException('loi')
+    }
+  }
 }

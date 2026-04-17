@@ -9,7 +9,7 @@ import { randomUUID } from 'node:crypto';
 export class TeacherService {
   private readonly minioClient: Minio.Client
   private readonly bucketName = 'images'
-  private readonly backetName2 = 'videos'
+  private readonly bucketName2 = 'videos'
   constructor(
     @Inject('DATABASE_CONNECTION') private readonly db: mysql.Pool,
   ) {
@@ -147,13 +147,13 @@ export class TeacherService {
     const fileName = `${Date.now()}-${file.originalname}`
     try {
       await this.minioClient.putObject(
-        this.backetName2,
+        this.bucketName2,
         fileName,
         file.buffer,
         file.size,
         { 'Content-Type': file.mimetype }
       )
-      const videoUrl = `http://localhost:9000/${this.bucketName}/${fileName}`
+      const videoUrl = `http://localhost:9000/${this.bucketName2}/${fileName}`
       await this.db.execute(
         'INSERT INTO CourseVideo (courseId, videoUrl,name) VALUES (?,?,?)', [courseId, videoUrl, name]
       )
