@@ -21,6 +21,21 @@ export class TeacherService {
       secretKey: 'admin12345',
       region: 'us-east-1'
     })
+    const policy = {
+      Version: '2012-10-17',
+      Statement: [
+        {
+          Effect: 'Allow',
+          Principal: '*',
+          Action: ['s3:GetObject'],
+          Resource: ['arn:aws:s3:::videos/*'], // Đảm bảo tên bucket đúng là images
+        },
+      ],
+    };
+
+    this.minioClient.setBucketPolicy('videos', JSON.stringify(policy))
+      .then(() => console.log('🔥 ĐÃ MỞ KHÓA PUBLIC BUCKET videos THÀNH CÔNG!'))
+      .catch((err) => console.error('LỖI MỞ KHÓA:', err));
   }
   async patchInformation(userId: string, name: string, dob: Date, address: string, phone: string, gender: string, bankName: string, bankAccount: string): Promise<void> {
     try {
