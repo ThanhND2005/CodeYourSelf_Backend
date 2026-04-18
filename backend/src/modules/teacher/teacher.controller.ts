@@ -3,7 +3,6 @@ import { TeacherService } from './teacher.service';
 
 import { FileInterceptor } from '@nestjs/platform-express';
 import { randomUUID } from 'node:crypto';
-import { patch } from 'axios';
 
 @Controller('apis/teacher')
 export class TeacherController {
@@ -135,8 +134,27 @@ export class TeacherController {
   @Post('postComment/:courseId')
   @HttpCode(HttpStatus.OK)
   async postComment(@Param('courseId') courseId: string, @Body() {userId, content}: any){
-    await this.teacherService.postComment(courseId,userId,content,new Date())
+    await this.teacherService.postComment(courseId,userId,content)
     return{message:'ok'}
+  }
+  @Post('postReply/:commentId')
+  @HttpCode(HttpStatus.OK)
+  async postReply(@Param('commentId') commentId: string, @Body() {userId, content}: any){
+    await this.teacherService.postReply(commentId,userId,content)
+    return{message:'ok'}
+  }
+  @Get('getComment/:courseId')
+  @HttpCode(HttpStatus.OK)
+  async getComment(@Param('courseId') courseId: string){
+    const comments = await this.teacherService.getCommnet(courseId)
+    console.log(comments)
+    return{comments}
+  }
+  @Get('getReply/:commentId')
+  @HttpCode(HttpStatus.OK)
+  async getReply(@Param('commentId') commentId: string){
+    const replies = await this.teacherService.getReply(commentId)
+    return{replies}
   }
   @Get('getSingleCourses/:teacherId')
   @HttpCode(HttpStatus.OK)

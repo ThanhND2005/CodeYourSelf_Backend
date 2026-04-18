@@ -328,17 +328,17 @@ ORDER BY createdat DESC;`, [userId]
     const connection = await this.db.getConnection();
 
     try {
-      // Bắt đầu giao dịch
+      
       await connection.beginTransaction();
 
-      // 1. Lưu vào bảng 'Notification' (Chỉ insert 1 lần duy nhất)
+      
       await connection.execute(
         `INSERT INTO Notification (notificationId, title, content, createdAt, deleted) 
        VALUES (?, ?, ?, NOW(), 0)`,
         [notificationId, title, content]
       );
 
-      // 2. Lưu vào bảng 'NotificationManagement' cho từng người nhận
+      
       if (receiverIds && receiverIds.length > 0) {
 
         const insertManagementPromises = receiverIds.map(receiverId => {
@@ -357,18 +357,14 @@ ORDER BY createdat DESC;`, [userId]
 
         await Promise.all(insertManagementPromises);
       }
-
-      // Hoàn tất giao dịch
       await connection.commit();
 
     } catch (error) {
-      // Nếu có bất kỳ lỗi nào, hoàn tác các thay đổi
       await connection.rollback();
       console.error('Lỗi khi tạo thông báo:', error);
       throw error;
 
     } finally {
-      // Rất quan trọng: Giải phóng connection trả lại cho Pool sau khi dùng xong
       if (connection && connection.release) {
         connection.release();
       }
