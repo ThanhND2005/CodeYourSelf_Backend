@@ -319,21 +319,50 @@ export class TeacherService {
     )
     return rows
   }
-  async postComment(courseId: string, userId: string, content: string, createdAt: Date): Promise<void> {
+  async postComment(courseId: string, userId: string, content: string): Promise<void> {
     try {
+      console.log("Course ID chuẩn bị insert:", courseId);
       await this.db.execute(
-        'INSERT INTO Comment (userId, courseId, content, createdAt) VALUES (?,?,?,?)', [userId, courseId, content, createdAt]
+        'INSERT INTO Comment (userId, courseId, content) VALUES (?,?,?)', [userId, courseId, content]
       )
     } catch (error) {
       console.error(error)
       throw new InternalServerErrorException('lỗi hệ thống')
     }
   }
-  /**
-   * Lấy danh sách Single Courses theo teacherId
-   */
+  async postReply(commentId: string, userId: string, content: string){
+    
+    try {
+      await this.db.execute('INSERT INTO Reply (commentId, userId, content) VALUES (?,?,?)',[commentId,userId,content])
+    } catch (error) {
+      console.error(error)
+      throw new InternalServerErrorException('lỗi hệ thống')
+    }
+  }
+  async getCommnet (courseId:string): Promise<mysql.RowDataPacket[]> {
+    const [rows1] = await this.db.execute<mysql.RowDataPacket[]>(
+      'SELECT c.commentId, c.courseId, t.userid, c.content, c.createdAt, t.name as userName,t.avatarUrl FROM Comment c JOIN Teacher t on t.userId = c.userId WHERE c.courseId=?',[courseId]
+    )
+    const [rows2] = await this.db.execute<mysql.RowDataPacket[]>(
+      'SELECT c.commentId, c.courseId, t.userid, c.content, c.createdAt, t.name as userName,t.avatarUrl FROM Comment c JOIN Student t on t.userId = c.userId WHERE c.courseId=?',[courseId]
+    )
+    const rows = rows1.concat(rows2)
+    return rows
+  }
+  async getReply (commentId: string) :Promise<mysql.RowDataPacket[]>{
+   
+    const [rows1] = await this.db.execute<mysql.RowDataPacket[]>(
+      'SELECT r.replyId, r.commentId, t.userId, r.content, r.createdAt, t.name as userName, t.avatarUrl FROM Reply r JOIN Teacher t on t.userId = r.userId WHERE commentId = ?',[commentId]
+    )
+    const [rows2] = await this.db.execute<mysql.RowDataPacket[]>(
+      'SELECT r.replyId, r.commentId, t.userId, r.content, r.createdAt, t.name as userName, t.avatarUrl FROM Reply r JOIN Student t on t.userId = r.userId WHERE commentId = ?',[commentId]
+    )
+    const rows = rows1.concat(rows2)
+    return rows
+  }
+  
   async getSingleCoursesByTeacherId(teacherId: string): Promise<SingleCourse[]> {
-    // Câu lệnh SQL (bỏ qua các record đã bị xóa mềm deleted = 1)
+    
     const query = `
       SELECT 
         courseId, 
@@ -351,21 +380,19 @@ export class TeacherService {
     `;
 
     try {
-      // Sử dụng destructuring để lấy rows
+      
       const [rows] = await this.db.execute<SingleCourse[]>(query, [teacherId]);
 
-      // rows lúc này là mảng các object khớp với interface SingleCourse (chưa tính totalStudents)
+      
       return rows;
     } catch (error) {
-      // Xử lý lỗi (log, throw exception...)
+      
       console.error('Error fetching single courses:', error);
       throw error;
     }
   }
 
-  /**
-   * Lấy danh sách Multiple Courses theo teacherId
-   */
+  
   async getMultipleCoursesByTeacherId(teacherId: string): Promise<MultipleCourse[]> {
     const query = `
       SELECT 
