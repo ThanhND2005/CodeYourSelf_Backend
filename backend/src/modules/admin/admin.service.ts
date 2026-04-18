@@ -19,6 +19,7 @@ export interface TeacherRow extends mysql.RowDataPacket {
   phone: string,
   gender: string,
   createdAt: Date,
+  avatarUrl: string,
 }
 export interface NotificationRow extends mysql.RowDataPacket {
   senderId: string,
@@ -58,7 +59,9 @@ export interface TeacherBill extends mysql.RowDataPacket {
   teacherId: string,
   teacherName: string,
   status: string,
-  qrUrl: string
+  qrUrl: string,
+  periodMonth: number,
+  periodYear: number
 }
 export interface DashboardNotificationDTO extends mysql.RowDataPacket {
   id: string;
@@ -79,7 +82,7 @@ export class AdminService {
       port: 9000,
       useSSL: false,
       accessKey: 'admin',
-      secretKey: 'admin1234'
+      secretKey: 'admin12345'
     })
   }
   async getNotificationReceived(): Promise<DashboardNotificationDTO[]> {
@@ -114,7 +117,7 @@ export class AdminService {
     }
   }
   async getTeachers(): Promise<TeacherRow[]> {
-    const [rows] = await this.db.execute<TeacherRow[]>(`SELECT userId, name,dob,address, phone, gender, createdAt FROM Teacher WHERE deleted=0`)
+    const [rows] = await this.db.execute<TeacherRow[]>(`SELECT userId, name,dob,address, phone, gender, createdAt,avatarUrl FROM Teacher WHERE deleted=0`)
     return rows
   }
   async deleteTeacher(userId: string): Promise<void> {
@@ -232,7 +235,7 @@ ORDER BY createdat DESC;`, [userId]
       throw new InternalServerErrorException('Lỗi server khi tạo và lưu QR Code');
     }
   }
-  async postSalary(salaryId: string, createdAt: Date, amount: number, teacherId: string): Promise<void> {
+  async postSalary(salaryId: string, createdAt: Date, amount: number, teacherId: string, periodMonth: number, periodYear: number): Promise<void> {
     const url = `https://img.vietqr.io/image/mbbank-0334477715-print.png?amount=${amount}&addInfo=${salaryId}&accountName=Code%20Your%20Self`;
     try {
       const response = await axios.get(url, { responseType: "arraybuffer" })
@@ -246,8 +249,9 @@ ORDER BY createdat DESC;`, [userId]
         { 'Content-Type': 'image/png' }
       )
       const minioUrl = `http://localhost:9000/${this.bucketName}/${fileName}`
-      await this.db.execute(
-        `INSERT INTO Salary (salaryId ,createdAt, amount,teacherId, qrUrl) VALUES (?,?,?,?,?)`, [salaryId, createdAt, amount, teacherId, minioUrl]
+      
+      await this.db.query(
+        `INSERT IGNORE INTO Salary (salaryId, createdAt, amount, teacherId, qrUrl, status, periodMonth, periodYear) VALUES (?, ?, ?, ?, ?, 'PENDING', ?, ?)`, [salaryId, createdAt, amount, teacherId, minioUrl, periodMonth, periodYear, teacherId, periodMonth, periodYear]
       )
     } catch (error) {
       console.error('Lỗi khi xử lý ảnh QR trên server:', error);
@@ -256,7 +260,7 @@ ORDER BY createdat DESC;`, [userId]
   }
   async getSalary(): Promise<TeacherBill[]> {
     const [rows] = await this.db.execute<TeacherBill[]>(
-      `SELECT s.salaryId, s.createdAt,s.amount, s.teacherId,t.name as teacherName,s.status,s.qrUrl 
+      `SELECT s.salaryId, s.createdAt,s.amount, s.teacherId,t.name as teacherName,s.status,s.qrUrl,s.periodMonth, s.periodYear
       FROM Salary s 
       JOIN Teacher t on t.userId=s.teacherId
       WHERE s.deleted = 0`
@@ -370,14 +374,14 @@ ORDER BY createdat DESC;`, [userId]
       }
     }
   }
-  async patchTeacher (teacherId: string, name:string,dob: Date,address: string, phone: string, gender: string ){
+  async patchTeacher(teacherId: string, name: string, dob: Date, address: string, phone: string, gender: string) {
     try {
       await this.db.execute(
-        `UPDATE Teacher SET name=?,dob=?,address=?,phone=?,gender=? WHERE userId=?`,[name, dob,address,phone, gender,teacherId]
+        `UPDATE Teacher SET name=?,dob=?,address=?,phone=?,gender=? WHERE userId=?`, [name, dob, address, phone, gender, teacherId]
       )
     } catch (error) {
       console.error(error)
-      throw  new InternalServerErrorException('loi')
+      throw new InternalServerErrorException('loi')
     }
   }
 }
