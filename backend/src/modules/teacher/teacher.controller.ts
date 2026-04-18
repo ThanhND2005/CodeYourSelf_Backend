@@ -179,6 +179,7 @@ export class TeacherController {
   @HttpCode(HttpStatus.OK)
   async getStats(@Param('teacherId') teacherId: string){
     const stats = await this.teacherService.GetMonthIncomeStats(teacherId)
+    console.log(stats)
     return{stats}
   }
   @Patch('deleteStudent')

@@ -1,3 +1,4 @@
+
 import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus, InternalServerErrorException, Req, UseGuards } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { randomUUID } from 'crypto';
@@ -5,6 +6,8 @@ import { PaymentDto } from './dto/create-admin.dto';
 import { AuthGuard } from 'src/guards/auth.guard';
 import { RolesGuard } from 'src/guards/role.guard';
 import { Roles } from 'src/guards/role.decorator';
+import { Injectable } from '@nestjs/common';
+import { TeacherService } from '../teacher/teacher.service';
 interface User extends Request{
   user:{
     userId: string,
@@ -15,8 +18,9 @@ interface User extends Request{
 
 @Controller('apis/admin')
 @UseGuards(AuthGuard,RolesGuard)
+@Injectable()
 export class AdminController {
-  constructor(private readonly adminService: AdminService) {}
+  constructor(private readonly adminService: AdminService,private readonly teacherService: TeacherService) {}
   @Get('getStudents')
   @Roles('admin')
   @HttpCode(HttpStatus.OK)
@@ -145,21 +149,22 @@ export class AdminController {
   @HttpCode(HttpStatus.CREATED)
   async postSalary() {
     try {
-      const teachers = await this.adminService.getTeachers()
-      for(let i = 0;i<teachers.length;i++){
-        const teacher = teachers[i]
-        const courses = await this.adminService.getCourseById(teacher.userId)
-        let amount = 0
-        for(let j = 0;j<courses.length;j++)
+        const teachers = await this.adminService.getTeachers()
+        for(let i =0;i< teachers.length;i++)
         {
-          amount += courses[j].amount
+          console.log(teachers[i].userId)
+          const stats = await this.teacherService.GetMonthIncomeStats(teachers[i].userId)
+          const salaryId = randomUUID()
+          const stats1 = stats.find((t) => t.periodMonth == (new Date()).getMonth() && t.periodYear == (new Date()).getFullYear())
+          if(stats1){
+            await this.adminService.postSalary(salaryId,new Date(),(stats1?.totalProfit)*0.8,teachers[i].userId,(new Date()).getMonth(),(new Date()).getFullYear())
+            
+          }
         }
-        const salaryId = randomUUID()
-        await this.adminService.postSalary(salaryId,new Date(),amount,teacher.userId)
         return{
           message:'Tạo hóa đơn lượng thành công'
         }
-      }
+      
     } catch (error) {
       console.error(error)
       throw new InternalServerErrorException
