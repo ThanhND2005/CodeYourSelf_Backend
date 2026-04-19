@@ -147,7 +147,6 @@ export class TeacherController {
   @HttpCode(HttpStatus.OK)
   async getComment(@Param('courseId') courseId: string){
     const comments = await this.teacherService.getCommnet(courseId)
-    console.log(comments)
     return{comments}
   }
   @Get('getReply/:commentId')

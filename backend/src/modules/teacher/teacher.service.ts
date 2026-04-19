@@ -243,7 +243,7 @@ export class TeacherService {
   async getStudentsByTeacher(teacherId): Promise<Student[]> {
     try {
       const [rows] = await this.db.execute<Student[]>(
-        'SELECT s.userId, s.name, c.courseId, c.name as courseName FROM Student s JOIN Payment p on p.studentId = s.userId JOIN Course c on c.courseId = p.courseId WHERE c.deleted=0 AND s.deleted=0 AND p.status IS NOT NULL AND c.teacherId = ?', [teacherId]
+        'SELECT s.userId as studentId, s.name, c.courseId, c.name as courseName FROM Student s JOIN Payment p on p.studentId = s.userId JOIN Course c on c.courseId = p.courseId WHERE c.deleted=0 AND s.deleted=0 AND p.status IS NOT NULL AND c.teacherId = ?', [teacherId]
       )
       return rows
     } catch (error) {
@@ -426,7 +426,13 @@ export class TeacherService {
   receiverRole: string, 
   notificationId: string
 ): Promise<void> {
-
+  console.log(title)
+  console.log(content)
+  console.log(senderId)
+  console.log(senderRole)
+  console.log(receiverIds)
+  console.log(receiverRole)
+  console.log(notificationId)
   const connection = await this.db.getConnection();
   
   try {
