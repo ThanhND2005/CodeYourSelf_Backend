@@ -1,8 +1,15 @@
-  import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus, UseInterceptors, UploadedFile, BadRequestException, Query } from '@nestjs/common';
+  import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus, UseInterceptors, UploadedFile, BadRequestException, Query, Req, UseGuards } from '@nestjs/common';
 import { StudentService } from './student.service';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { AuthGuard } from 'src/guards/auth.guard';
 
-
+interface User extends Request{
+  user: {
+    userId: string, 
+    role: string
+  }
+}
+@UseGuards(AuthGuard)
 @Controller('apis/student')
 export class StudentController {
   constructor(private readonly studentService: StudentService) {}
@@ -92,5 +99,39 @@ export class StudentController {
   async patchInformation (@Param('userId') userId: string,@Body() {name, dob,address, phone, gender }:any){
     await this.studentService.patchInformation(userId,name, dob,address,phone,gender)
     return{message:'Thành công'}
+  }
+  @Get('getTrendingCourse')
+  @HttpCode(HttpStatus.OK)
+  async getTrendingCourse (){
+    const trendingCourses = await this.studentService.getTrendingCourse() 
+    trendingCourses.sort((a,b) => b.rate-a.rate)
+    return{trendingCourses}
+  }
+  @Get('getNewCourse')
+  @HttpCode(HttpStatus.OK)
+  async getNewCourse (){
+    const newCourses = await this.studentService.getTrendingCourse() 
+    newCourses.sort((a,b) => b.createdAt-a.createdAt)
+    return{newCourses}
+  }
+  @Get('getNotification')
+  
+  @HttpCode(HttpStatus.OK)
+  async getNotification (@Req() req : User) {
+    const useId = req.user.userId
+    const notifications = await this.studentService.getNotification(useId)
+    return{notifications}
+  }
+  @Get('getProgressCourse')
+  @HttpCode(HttpStatus.OK)
+  async getProgressCourse(@Req() req : User){
+    const userId = req.user.userId
+    const progressCourse = await this.studentService.getProgressCourse(userId)
+    return{progressCourse}
+  }
+  @Patch('patchCourse')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async patchCourse(@Body() {courseId, rate} : any) {
+    await this.studentService.patchRate(courseId, rate)
   }
 }

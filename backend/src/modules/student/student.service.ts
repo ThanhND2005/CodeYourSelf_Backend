@@ -153,4 +153,46 @@ export class StudentService {
       throw new InternalServerErrorException('lỗi hệ thống')
     }
   }
+  async getTrendingCourse() : Promise<mysql.RowDataPacket[]> {
+    const [rows1] = await this.db.execute<mysql.RowDataPacket[]>(
+      `SELECT c.courseId, c.name, c.cost,c.summary,c.teacherId,t.name as teacherName,c.rate,c.imageUrl,'false' as isMultiple FROM Course c JOIN Teacher t on c.teacherId = t.userId ORDER BY c.rate DESC LIMIT 10`,[]
+    )
+    const [rows2] = await this.db.execute<mysql.RowDataPacket[]>(
+      `SELECT c.multipleCourseId as courseId, c.name, c.cost,c.sumary as summary,c.teacherId,t.name as teacherName,c.rate,c.imageUrl,'true' as isMultiple FROM MultipleCourse c JOIN Teacher t on t.userId = c.teacherId ORDER BY c.rate DESC LIMIT 10`,[]
+    )
+    const rows = rows1.concat(rows2)
+    return rows
+  }
+  async getNewCourse() : Promise<mysql.RowDataPacket[]>{
+    const [rows1] = await this.db.execute<mysql.RowDataPacket[]>(
+      `SELECT c.courseId, c.name, c.cost,c.summary,c.teacherId,t.name as teacherName,c.rate,c.imageUrl,'false' as isMultiple,c.createdAt FROM Course c JOIN Teacher t on c.teacherId = t.userId ORDER BY c.createdAt DESC LIMIT 10`,[]
+    )
+    const [rows2] = await this.db.execute<mysql.RowDataPacket[]>(
+      `SELECT c.multipleCourseId as courseId, c.name, c.cost,c.sumary as summary,c.teacherId,t.name as teacherName,c.rate,c.imageUrl,'true' as isMultiple,c.createdAt FROM MultipleCourse c JOIN Teacher t on t.userId = c.teacherId ORDER BY c.createdAt DESC LIMIT 10`,[]
+    )
+    const rows = rows1.concat(rows2)
+    return rows
+  }
+  async getNotification(userId: string) : Promise<mysql.RowDataPacket[]>{
+    const [rows] = await this.db.execute<mysql.RowDataPacket[]>(
+      `SELECT n.* FROM Notification n JOIN NotificationManagement m on m.notificationId = n.notificationId WHERE receiverId = ?`,[userId]
+    )
+    return rows
+  }
+  async getProgressCourse (userId: string) : Promise<mysql.RowDataPacket[]>{
+    const [rows] = await this.db.execute<mysql.RowDataPacket[]>(
+      `SELECT cm.*,c.name FROM CourseManagement cm JOIN Course c on c.courseId = cm.courseId WHERE studentId=? `,[userId]
+    )
+    return rows
+  }
+  async patchRate (courseId: string, rate: number) {
+    const [rows1] = await this.db.execute<mysql.RowDataPacket[]>(
+      `SELECT * FROM Course WHERE courseId=?`,[courseId]
+    )
+    const course = rows1[0] 
+    const newRate = (course.rate + rate)/2
+    await this.db.execute(
+      'UPDATE Course SET rate=? WHERE courseId=?',[newRate,courseId]
+    )
+  }
 }
