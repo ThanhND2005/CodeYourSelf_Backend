@@ -15,7 +15,7 @@ export class StudentService {
       port: 9000,
       useSSL:false,
       accessKey: 'admin',
-      secretKey:'admin1234'
+      secretKey:'admin12345'
     })
   }
   async searchCourse (searchTerm : string) : Promise<Course[]>{
