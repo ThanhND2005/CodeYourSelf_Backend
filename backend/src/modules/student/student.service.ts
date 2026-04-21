@@ -195,4 +195,40 @@ export class StudentService {
       'UPDATE Course SET rate=? WHERE courseId=?',[newRate,courseId]
     )
   }
+  async getProgressLesson (courseId : string,studentId: string) : Promise<mysql.RowDataPacket[]> {
+    try {
+      const [rows]= await this.db.execute<mysql.RowDataPacket[]>(
+        `SELECT * FROM StudentVideoProgress WHERE courseId=? AND studentId=?`,[courseId,studentId]
+      )
+      return rows
+    } catch (error) {
+      console.error(error)
+      throw new InternalServerErrorException('loi')
+    }
+  }
+  async SyncProgress (videoId: string, currentTime: number, isCompleted : boolean,studentId: string){
+    try {
+      await this.db.execute(
+        `UPDATE StudentVideoProgress SET lastPosition=?, isCompleted=? WHERE videoId=? AND studentId=?`,[currentTime,isCompleted,videoId,studentId]
+      )
+    } catch (error) {
+      console.error(error)
+      throw new InternalServerErrorException('loi')
+    }
+  }
+  async patchCourseProgress (courseId: string,studentId: string) {
+    const lessonProgress = await this.getProgressLesson(courseId,studentId)
+    const lessonProgress2 = lessonProgress.filter((t) => t.isCompleted === 1)
+    const progress = Math.ceil((lessonProgress2.length/lessonProgress.length)*100)
+    if(progress == 100) {
+      await this.db.execute(
+        `UPDATE CourseManagement SET progress=100,status='completed' WHERE courseId=? AND studentId=?`,[courseId,studentId]
+      )
+    }
+    else{
+      await this.db.execute(
+        `UPDATE CourseManagement SET progress=? WHERE courseId=? AND studentId=?`,[progress,courseId,studentId]
+      )
+    }
+  }
 }

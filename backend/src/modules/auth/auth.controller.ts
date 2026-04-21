@@ -89,7 +89,7 @@ export class AuthController {
       {
         throw new UnauthorizedException('Thông tin tài khoản hoặc mật khẩu không chính xác !')
       }
-      const accessToken = jwt.sign({userId: account.userId,role: account.userrole},process.env.ACCESS_TOKEN_SECRET as string, {expiresIn:'30m'})
+      const accessToken = jwt.sign({userId: account.userId,role: account.userrole},process.env.ACCESS_TOKEN_SECRET as string, {expiresIn:'1h'})
       const refreshtoken = randomUUID()
       const expireat = new Date()
       expireat.setTime(expireat.getTime() + (8*60*60*1000))

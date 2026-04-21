@@ -1,4 +1,4 @@
-  import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus, UseInterceptors, UploadedFile, BadRequestException, Query, Req, UseGuards } from '@nestjs/common';
+  import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus, UseInterceptors, UploadedFile, BadRequestException, Query, Req, UseGuards, InternalServerErrorException } from '@nestjs/common';
 import { StudentService } from './student.service';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from 'src/guards/auth.guard';
@@ -133,5 +133,22 @@ export class StudentController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async patchCourse(@Body() {courseId, rate} : any) {
     await this.studentService.patchRate(courseId, rate)
+  }
+  @Get('getLessonProgress/:courseId')
+  @HttpCode(HttpStatus.OK)
+  async getLessonProgress (@Param('courseId') courseId : string, @Req() req : User)
+  {
+      const progress = await this.studentService.getProgressLesson(courseId,req.user.userId)
+      return{progress}
+  }
+  @Patch('SyncProgress')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async SyncProgress (@Body() {videoId, currentTime, isCompleted} :any,@Req() req : User){
+    await this.studentService.SyncProgress(videoId,currentTime,isCompleted,req.user.userId)
+  }
+  @Patch('patchCourseProgress/:courseId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async patchCourseProgress (@Param('courseId') courseId: string, @Req()  req : User){
+    await this.studentService.patchCourseProgress(courseId,req.user.userId)
   }
 }
