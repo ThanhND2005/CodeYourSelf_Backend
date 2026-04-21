@@ -18,36 +18,44 @@ export class StudentService {
       secretKey:'admin12345'
     })
   }
-  async searchCourse (searchTerm : string) : Promise<Course[]>{
-    try {
-      const searchPattern = `%${searchTerm}%`;
-      const [rows] = await this.db.execute<Course[]>(
-        `SELECT c.courseId, c.name, c.imageUrl, c.cost,c.rate,t.name as teacherName
-          FROM Course c
-          JOIN Teacher t on t.userId = c.teacherId
-          WHERE c.name LIKE ? OR c.summary LIKE ?`,[searchPattern,searchPattern]
-      )
-      return rows
-    } catch (error) {
-      console.error(error)
-      throw new InternalServerErrorException('lỗi hệ thống')
-    }
+  async searchCourse(searchTerm: string): Promise<Course[]> {
+  try {
+    
+    const searchPattern = `%${searchTerm.toLowerCase()}%`;
+    
+    const [rows] = await this.db.execute<Course[]>(
+      `SELECT c.courseId, c.name, c.imageUrl, c.cost, c.rate, t.name as teacherName
+       FROM Course c
+       JOIN Teacher t on t.userId = c.teacherId
+       -- Sử dụng LOWER() để so sánh không phân biệt hoa/thường
+       WHERE LOWER(c.name) LIKE ? OR LOWER(c.summary) LIKE ?`,
+       [searchPattern, searchPattern]
+    );
+    return rows;
+  } catch (error) {
+    console.error(error);
+    throw new InternalServerErrorException('Lỗi hệ thống');
   }
-  async searchMultipleCourse (searchTerm : string) : Promise<MultipleCourse[]>{
-    try {
-      const searchPattern = `%${searchTerm}%`;
-      const [rows] = await this.db.execute<MultipleCourse[]>(
-        `SELECT c.multipleCourseId, c.name, c.imageUrl, c.cost,c.rate,c.imageUrl,t.name as teacherName
-          FROM MultipleCourse c
-          JOIN Teacher t on t.userId = c.teacherId
-          WHERE c.name LIKE ? OR c.sumary LIKE ?`,[searchPattern,searchPattern]
-      )
-      return rows
-    } catch (error) {
-      console.error(error)
-      throw new InternalServerErrorException('lỗi hệ thống')
-    }
+}
+  async searchMultipleCourse(searchTerm: string): Promise<MultipleCourse[]> {
+  try {
+   
+    const searchPattern = `%${searchTerm.toLowerCase()}%`;
+    
+    const [rows] = await this.db.execute<MultipleCourse[]>(
+      `SELECT c.multipleCourseId, c.name, c.imageUrl, c.cost, c.rate, t.name as teacherName
+       FROM MultipleCourse c
+       JOIN Teacher t on t.userId = c.teacherId
+       -- Sử dụng LOWER() để so sánh không phân biệt hoa/thường
+       WHERE LOWER(c.name) LIKE ? OR LOWER(c.sumary) LIKE ?`, 
+       [searchPattern, searchPattern]
+    );
+    return rows;
+  } catch (error) {
+    console.error(error);
+    throw new InternalServerErrorException('Lỗi hệ thống');
   }
+}
   async getDetailCourse (courseId: string) : Promise<Course>{
     try {
       const [rows] = await this.db.execute<Course[]>(
@@ -195,4 +203,53 @@ export class StudentService {
       'UPDATE Course SET rate=? WHERE courseId=?',[newRate,courseId]
     )
   }
+  async getProgressLesson (courseId : string,studentId: string) : Promise<mysql.RowDataPacket[]> {
+    try {
+      const [rows]= await this.db.execute<mysql.RowDataPacket[]>(
+        `SELECT * FROM StudentVideoProgress WHERE courseId=? AND studentId=?`,[courseId,studentId]
+      )
+      return rows
+    } catch (error) {
+      console.error(error)
+      throw new InternalServerErrorException('loi')
+    }
+  }
+  async SyncProgress (videoId: string, currentTime: number, isCompleted : boolean,studentId: string){
+    try {
+      await this.db.execute(
+        `UPDATE StudentVideoProgress SET lastPosition=?, isCompleted=? WHERE videoId=? AND studentId=?`,[currentTime,isCompleted,videoId,studentId]
+      )
+    } catch (error) {
+      console.error(error)
+      throw new InternalServerErrorException('loi')
+    }
+  }
+  async patchCourseProgress (courseId: string,studentId: string) {
+    const lessonProgress = await this.getProgressLesson(courseId,studentId)
+    const lessonProgress2 = lessonProgress.filter((t) => t.isCompleted === 1)
+    const progress = Math.ceil((lessonProgress2.length/lessonProgress.length)*100)
+    if(progress == 100) {
+      await this.db.execute(
+        `UPDATE CourseManagement SET progress=100,status='completed' WHERE courseId=? AND studentId=?`,[courseId,studentId]
+      )
+    }
+    else{
+      await this.db.execute(
+        `UPDATE CourseManagement SET progress=? WHERE courseId=? AND studentId=?`,[progress,courseId,studentId]
+      )
+    }
+  }
+  async getMultipleCourseById (studentId: string) : Promise<mysql.RowDataPacket[]>{
+    const [rows1] = await this.db.execute<mysql.RowDataPacket[]>(
+      `SELECT mc.* FROM MultipleCourse mc JOIN CourseManagement cm on cm.multipleCourseId = mc.multipleCourseId WHERE studentId=?`,[studentId]
+    )
+    for (let i =0;i<rows1.length;i++){
+      const [courses] = await this.db.execute<mysql.RowDataPacket[]>(
+        `SELECT c.courseId, c.name, cm.progress FROM Course c JOIN CourseManagement cm on cm.courseId = c.courseId WHERE c.multipleCourseId=? `,[rows1[i].multipleCourseId]
+      )
+      rows1[i].courses = courses
+    }
+    return rows1
+  }
+  
 }
