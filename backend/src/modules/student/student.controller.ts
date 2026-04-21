@@ -38,6 +38,15 @@ export class StudentController {
       message:'Thành công'
     }
   }
+  @Get('searchSingleCourse')
+  @HttpCode(HttpStatus.OK)
+  async searchSingleCourse(@Query('searchTerm') searchTerm : string) {
+    const courseSearchs=  await this.studentService.searchCourse(searchTerm)
+    return{
+      courseSearchs,
+      message:'Thành công'
+    }
+  }
   @Get('getDetailCourse/:courseId')
   @HttpCode(HttpStatus.OK)
   async getDetailCourse(@Param('courseId') courseId: string){
@@ -150,5 +159,11 @@ export class StudentController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async patchCourseProgress (@Param('courseId') courseId: string, @Req()  req : User){
     await this.studentService.patchCourseProgress(courseId,req.user.userId)
+  }
+  @Get('getMultipleCourseByStudentId')
+  @HttpCode(HttpStatus.OK)
+  async getMultipleCourseByStudentId (@Req() req : User){
+    const multipleCourses = await this.studentService.getMultipleCourseById(req.user.userId)
+    return{multipleCourses}
   }
 }
