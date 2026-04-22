@@ -20,6 +20,8 @@ export interface TeacherRow extends mysql.RowDataPacket {
   gender: string,
   createdAt: Date,
   avatarUrl: string,
+  bankName : string, 
+  bankAccount: string
 }
 export interface NotificationRow extends mysql.RowDataPacket {
   senderId: string,
@@ -117,7 +119,7 @@ export class AdminService {
     }
   }
   async getTeachers(): Promise<TeacherRow[]> {
-    const [rows] = await this.db.execute<TeacherRow[]>(`SELECT userId, name,dob,address, phone, gender, createdAt,avatarUrl FROM Teacher WHERE deleted=0`)
+    const [rows] = await this.db.execute<TeacherRow[]>(`SELECT userId, name,dob,address, phone, gender, createdAt,avatarUrl,bankName,bankAccount FROM Teacher WHERE deleted=0`)
     return rows
   }
   async deleteTeacher(userId: string): Promise<void> {
@@ -235,8 +237,8 @@ ORDER BY createdat DESC;`, [userId]
       throw new InternalServerErrorException('Lỗi server khi tạo và lưu QR Code');
     }
   }
-  async postSalary(salaryId: string, createdAt: Date, amount: number, teacherId: string, periodMonth: number, periodYear: number): Promise<void> {
-    const url = `https://img.vietqr.io/image/mbbank-0334477715-print.png?amount=${amount}&addInfo=${salaryId}&accountName=Code%20Your%20Self`;
+  async postSalary(salaryId: string, createdAt: Date, amount: number, teacherId: string, periodMonth: number, periodYear: number,accountName: string, accountNumber : string): Promise<void> {
+    const url = `https://img.vietqr.io/image/${accountName}-${accountNumber}-print.png?amount=${amount}&addInfo=${salaryId}&accountName=Code%20Your%20Self`;
     try {
       const response = await axios.get(url, { responseType: "arraybuffer" })
       const buffer = Buffer.from(response.data, 'binary')
@@ -266,6 +268,15 @@ ORDER BY createdat DESC;`, [userId]
       WHERE s.deleted = 0`
     )
     return rows
+  }
+  async getTeacherBill(salaryId: string) : Promise<TeacherBill>{
+    const [rows] = await this.db.execute<TeacherBill[]>(
+      `SELECT s.salaryId, s.createdAt,s.amount, s.teacherId,t.name as teacherName,s.status,s.qrUrl,s.periodMonth, s.periodYear
+      FROM Salary s 
+      JOIN Teacher t on t.userId=s.teacherId
+      WHERE s.deleted = 0 AND s.salaryId=?`,[salaryId]
+    )
+    return rows[0]
   }
   async deleteStudentBill(paymentId: string): Promise<void> {
     await this.db.execute(

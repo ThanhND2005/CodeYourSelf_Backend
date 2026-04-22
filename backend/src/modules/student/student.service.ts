@@ -112,16 +112,6 @@ export class StudentService {
       throw new InternalServerErrorException('lỗi hệ thống')
     }
   }
-  async postComment(courseId: string, userId: string, content: string, createdAt: Date): Promise<void> {
-    try {
-      await this.db.execute(
-        'INSERT INTO Comment (userId, courseId, content, createdAt) VALUES (?,?,?,?)', [userId, courseId, content, createdAt]
-      )
-    } catch (error) {
-      console.error(error)
-      throw new InternalServerErrorException('lỗi hệ thống')
-    }
-  }
   async getInformation(userId: string): Promise<Student> {
     try {
       const [rows] = await this.db.execute<Student[]>(
@@ -191,7 +181,7 @@ export class StudentService {
   }
   async getProgressCourse(userId: string): Promise<mysql.RowDataPacket[]> {
     const [rows] = await this.db.execute<mysql.RowDataPacket[]>(
-      `SELECT cm.*,c.name FROM CourseManagement cm JOIN Course c on c.courseId = cm.courseId WHERE studentId=? `, [userId]
+      `SELECT cm.*,c.name FROM CourseManagement cm JOIN Course c on c.courseId = cm.courseId WHERE studentId=? AND cm.multipleCourseId IS NULL`, [userId]
     )
     return rows
   }
@@ -243,11 +233,11 @@ export class StudentService {
   }
   async getMultipleCourseById(studentId: string): Promise<mysql.RowDataPacket[]> {
     const [rows1] = await this.db.execute<mysql.RowDataPacket[]>(
-      `SELECT mc.* FROM MultipleCourse mc JOIN CourseManagement cm on cm.multipleCourseId = mc.multipleCourseId WHERE studentId=? AND mc.multipleCourseId is not null AND mc.courseId is null`, [studentId]
+      `SELECT mc.* FROM MultipleCourse mc JOIN CourseManagement cm on cm.multipleCourseId = mc.multipleCourseId WHERE studentId=? AND cm.multipleCourseId is not null AND cm.courseId is null`, [studentId]
     )
     for (let i = 0; i < rows1.length; i++) {
       const [courses] = await this.db.execute<mysql.RowDataPacket[]>(
-        `SELTEC c.courseId, c.name, cm.progress FROM Course c JOIN CourseManagement cm on cm.courseId = c.courseId WHERE c.multipleCourseId=? AND cm.isMultiple=1`, [rows1[i].multipleCourseId]
+        `SELECT c.courseId, c.name, cm.progress FROM Course c JOIN CourseManagement cm on cm.courseId = c.courseId WHERE c.multipleCourseId=? AND cm.isMultiple=1`, [rows1[i].multipleCourseId]
       )
       rows1[i].courses = courses
     }
@@ -284,6 +274,75 @@ export class StudentService {
       throw new InternalServerErrorException('loi')
     }
   }
+  async postPaymentMultiple(courseId: string, studentId: string): Promise<string> {
+    try {
+      const course = await this.getDetailMultipleCourse(courseId)
+      const paymentId = randomUUID()
+      const day = new Date()
+      const url = `https://img.vietqr.io/image/mbbank-0334477715-print.png?amount=${course.cost}&addInfo=${paymentId}&accountName=Code%20Your%20Self`
+      try {
+        const response = await axios.get(url, { responseType: 'arraybuffer' })
+        const buffer = Buffer.from(response.data, 'binary')
+        const fileName = `qr-${paymentId}-${Date.now()}.png`
+        await this.minioClinent.putObject(
+          this.bucketName,
+          fileName,
+          buffer,
+          buffer.length,
+          { 'Content-Type': 'image/png' }
+        )
+        const minioUrl = `http://localhost:9000/${this.bucketName}/${fileName}`
+        await this.db.query(
+          `INSERT INTO Payment (paymentId, createdAt, amount, courseId, studentId, qrUrl, status, deleted, periodMonth, periodYear) VALUES (?,?,?,?,?,?,?,?,?,?)`, [paymentId, day, course.cost, courseId,studentId,minioUrl,'PENDING',0,day.getMonth() + 1,day.getFullYear()]
+        )
+        return paymentId
+      } catch (error) {
+        console.error(error)
+        throw new InternalServerErrorException('loi')
+      }
+    } catch (error) {
+      console.error(error)
+      throw new InternalServerErrorException('loi')
+    }
+  }
+  async postPaymentRoadmap(selectedCourseIds : string[],studentId : string) :Promise<string>{
+      const paymentId = randomUUID()
+      let courseId=''
+      let amount = 0
+      for(let i = 0;i<selectedCourseIds.length-1;i++){
+        courseId += selectedCourseIds[i]
+        courseId +=','
+        const course = await this.getDetailCourse(selectedCourseIds[i])
+        amount += course.cost*0.8
+      }
+      courseId += selectedCourseIds[selectedCourseIds.length - 1]
+      const course = await this.getDetailCourse(selectedCourseIds[selectedCourseIds.length - 1])
+      amount += course.cost*0.8
+  
+      const day = new Date()
+      const url = `https://img.vietqr.io/image/mbbank-0334477715-print.png?amount=${amount}&addInfo=${paymentId}&accountName=Code%20Your%20Self`
+      try {
+        const response = await axios.get(url, { responseType: 'arraybuffer' })
+        const buffer = Buffer.from(response.data, 'binary')
+        const fileName = `qr-${paymentId}-${Date.now()}.png`
+        await this.minioClinent.putObject(
+          this.bucketName,
+          fileName,
+          buffer,
+          buffer.length,
+          { 'Content-Type': 'image/png' }
+        )
+        const minioUrl = `http://localhost:9000/${this.bucketName}/${fileName}`
+        await this.db.query(
+          `INSERT INTO Payment (paymentId, createdAt, amount, courseId, studentId, qrUrl, status, deleted, periodMonth, periodYear) VALUES (?,?,?,?,?,?,?,?,?,?)`, [paymentId, day, amount, courseId,studentId,minioUrl,'PENDING',0,day.getMonth() + 1,day.getFullYear()]
+        )
+        return paymentId
+      } catch (error) {
+        console.error(error)
+        throw new InternalServerErrorException('loi')
+      }
+   
+  }
   async getPayment (paymentId : string) : Promise<mysql.RowDataPacket>{
     const [rows] = await this.db.execute<mysql.RowDataPacket[]>(
       `SELECT * FROM Payment WHERE paymentId=?`,[paymentId]
@@ -300,6 +359,30 @@ export class StudentService {
       throw new InternalServerErrorException('loi')
     }
   }
+  async postCourseManagementMultiple (studentId: string, courseId: string, status: string){
+    try {
+      await this.db.query(
+        `INSERT INTO CourseManagement (studentId, multipleCourseId, status) VALUES (?,?,?)`,[studentId,courseId,status]
+      )
+      const [courses] =await this.db.query<mysql.RowDataPacket[]>(
+        `SELECT * FROM Course WHERE multipleCourseId=?`,[courseId]
+      )
+      for(let i =0;i<courses.length; i++){
+        await this.db.query(
+          `INSERT INTO CourseManagement (studentId, courseId, multipleCourseId, status, isMultiple) VALUES (?,?,?,?,?)`,[studentId,courses[i].courseId, courseId,status,1]
+        )
+        const videos = await this.getCoursePaid(courses[i].courseId as string)
+        for(let j =0;j<videos.length;j++){
+          await this.db.query(
+            `INSERT INTO StudentVideoProgress (studentId, videoId, courseId) VALUES (?,?,?)`,[studentId,videos[j].videoId,courses[i].courseId]
+          )
+        }
+      }
+    } catch (error) {
+      console.error(error)
+      throw new InternalServerErrorException('loi')
+    }
+  }
   async postStudentVideoProgress(studentId, videoId, courseId ){
     try {
       await this.db.query(
@@ -310,4 +393,45 @@ export class StudentService {
       throw new InternalServerErrorException('loi')
     }
   }
+  async postComment(courseId: string, userId: string, content: string): Promise<void> {
+      try {
+      
+        await this.db.execute(
+          'INSERT INTO Comment (userId, courseId, content) VALUES (?,?,?)', [userId, courseId, content]
+        )
+      } catch (error) {
+        console.error(error)
+        throw new InternalServerErrorException('lỗi hệ thống')
+      }
+    }
+    async postReply(commentId: string, userId: string, content: string){
+      
+      try {
+        await this.db.execute('INSERT INTO Reply (commentId, userId, content) VALUES (?,?,?)',[commentId,userId,content])
+      } catch (error) {
+        console.error(error)
+        throw new InternalServerErrorException('lỗi hệ thống')
+      }
+    }
+    async getCommnet (courseId:string): Promise<mysql.RowDataPacket[]> {
+      const [rows1] = await this.db.execute<mysql.RowDataPacket[]>(
+        'SELECT c.commentId, c.courseId, t.userid, c.content, c.createdAt, t.name as userName,t.avatarUrl FROM Comment c JOIN Teacher t on t.userId = c.userId WHERE c.courseId=?',[courseId]
+      )
+      const [rows2] = await this.db.execute<mysql.RowDataPacket[]>(
+        'SELECT c.commentId, c.courseId, t.userid, c.content, c.createdAt, t.name as userName,t.avatarUrl FROM Comment c JOIN Student t on t.userId = c.userId WHERE c.courseId=?',[courseId]
+      )
+      const rows = rows1.concat(rows2)
+      return rows
+    }
+    async getReply (commentId: string) :Promise<mysql.RowDataPacket[]>{
+     
+      const [rows1] = await this.db.execute<mysql.RowDataPacket[]>(
+        'SELECT r.replyId, r.commentId, t.userId, r.content, r.createdAt, t.name as userName, t.avatarUrl FROM Reply r JOIN Teacher t on t.userId = r.userId WHERE commentId = ?',[commentId]
+      )
+      const [rows2] = await this.db.execute<mysql.RowDataPacket[]>(
+        'SELECT r.replyId, r.commentId, t.userId, r.content, r.createdAt, t.name as userName, t.avatarUrl FROM Reply r JOIN Student t on t.userId = r.userId WHERE commentId = ?',[commentId]
+      )
+      const rows = rows1.concat(rows2)
+      return rows
+    }
 }

@@ -157,7 +157,7 @@ export class AdminController {
           const salaryId = randomUUID()
           const stats1 = stats.find((t) => t.periodMonth == (new Date()).getMonth() && t.periodYear == (new Date()).getFullYear())
           if(stats1){
-            await this.adminService.postSalary(salaryId,new Date(),(stats1?.totalProfit)*0.8,teachers[i].userId,(new Date()).getMonth(),(new Date()).getFullYear())
+            await this.adminService.postSalary(salaryId,new Date(),(stats1?.totalProfit)*0.8,teachers[i].userId,(new Date()).getMonth(),(new Date()).getFullYear(),teachers[i].bankName,teachers[i].bankAccount)
             
           }
         }
@@ -184,6 +184,12 @@ export class AdminController {
       console.error(error)
       throw new InternalServerErrorException
     }
+  }
+  @Get('getTeacherBill/:salaryId')
+  @HttpCode(HttpStatus.OK)
+  async getTeacherBill (@Param('salaryId') salaryId: string){
+    const salary = await this.adminService.getTeacherBill(salaryId)
+    return{salary}
   }
   @Patch('deleteStudentBill/:paymentId')
   @HttpCode(HttpStatus.NO_CONTENT)

@@ -1,5 +1,4 @@
-import { PaymentDto } from './../admin/dto/create-admin.dto';
-  import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus, UseInterceptors, UploadedFile, BadRequestException, Query, Req, UseGuards, InternalServerErrorException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus, UseInterceptors, UploadedFile, BadRequestException, Query, Req, UseGuards, InternalServerErrorException } from '@nestjs/common';
 import { StudentService } from './student.service';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthGuard } from 'src/guards/auth.guard';
@@ -92,12 +91,7 @@ export class StudentController {
     await this.studentService.reviewCourse(newScore,courseId)
     return{message:'Đánh giá thành công'}
   }
-  @Post('postComment/:courseId')
-  @HttpCode(HttpStatus.CREATED)
-  async postCommnet(@Param('courseId') courseId: string, @Body() {userId, content}: any){
-    await this.studentService.postComment(courseId,userId,content, new Date())
-    return{message:'Bình luận thành công'}
-  }
+  
   @Get('getInformation/:userId')
   @HttpCode(HttpStatus.OK)
   async getInformation(@Param('userId') userId : string){
@@ -174,11 +168,38 @@ export class StudentController {
      const payment =  await this.studentService.getPayment(paymentId)
      return{payment}
   }
+  @Get('getBillMultipleCourse/:courseId')
+  @HttpCode(HttpStatus.OK)
+  async getBillMultipleCourse (@Param('courseId') courseId: string, @Req() req : User){
+     const paymentId = await this.studentService.postPaymentMultiple(courseId,req.user.userId)
+     const payment =  await this.studentService.getPayment(paymentId)
+     return{payment}
+  }
+  @Post('getBillRoadmapCourse')
+  @HttpCode(HttpStatus.OK)
+  async getBillRoadmapCourse (@Body() {selectedCourseIds} : any,@Req() req : User){
+    const paymentId = await this.studentService.postPaymentRoadmap(selectedCourseIds as string[],req.user.userId)
+    const payment = await this.studentService.getPayment(paymentId)
+    return{payment}
+  }
   @Get('getBillSingleCourse2/:paymentId')
   @HttpCode(HttpStatus.OK)
   async getBillSingleCourse2 (@Param('paymentId') paymentId : string) {
     const payment = await this.studentService.getPayment(paymentId)
     return{payment}
+  }
+  @Post('PaymentSuccessRoadmap/:paymentId')
+  @HttpCode(HttpStatus.CREATED)
+  async PaymentSuccessRoadmap (@Param('paymentId') paymentId: string){
+    const payment = await this.studentService.getPayment(paymentId)
+    const courseIds = String(payment.courseId).split(',')
+    for(let i =0;i<courseIds.length;i++){
+      await this.studentService.postCourseManagementSingle(payment.studentId,courseIds[i],'learning')
+      const videos = await this.studentService.getCoursePaid(courseIds[i])
+      for(let j =0;j<videos.length;j++){
+        await this.studentService.postStudentVideoProgress(payment.studentId,videos[i].videoId,courseIds[i])
+      }
+    }
   }
   @Post('PaymentSucces/:paymentId')
   @HttpCode(HttpStatus.CREATED)
@@ -190,5 +211,35 @@ export class StudentController {
     for(let i = 0;i< videos.length;i++){
       await this.studentService.postStudentVideoProgress(payment.studentId, videos[i].videoId, payment.courseId)
     }
+  }
+  @Post('PaymentSuccess2/:paymentId')
+  @HttpCode(HttpStatus.CREATED)
+  async PaymentSuccess2 (@Param('paymentId') paymentId: string){
+    const payment = await this.studentService.getPayment(paymentId)
+    await this.studentService.postCourseManagementMultiple(payment.studentId,payment.courseId, 'learning')
+  }
+  @Post('postComment/:courseId')
+  @HttpCode(HttpStatus.OK)
+  async postComment(@Param('courseId') courseId: string, @Body() {content}: any,@Req() req :User){
+    await this.studentService.postComment(courseId,req.user.userId,content)
+    return{message:'ok'}
+  }
+  @Post('postReply/:commentId')
+  @HttpCode(HttpStatus.OK)
+  async postReply(@Param('commentId') commentId: string, @Body() {content}: any,@Req() req :User){
+    await this.studentService.postReply(commentId,req.user.userId,content)
+    return{message:'ok'}
+  }
+  @Get('getComment/:courseId')
+  @HttpCode(HttpStatus.OK)
+  async getComment(@Param('courseId') courseId: string){
+    const comments = await this.studentService.getCommnet(courseId)
+    return{comments}
+  }
+  @Get('getReply/:commentId')
+  @HttpCode(HttpStatus.OK)
+  async getReply(@Param('commentId') commentId: string){
+    const replies = await this.studentService.getReply(commentId)
+    return{replies}
   }
 }
