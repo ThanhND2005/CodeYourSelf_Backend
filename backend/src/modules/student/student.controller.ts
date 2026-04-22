@@ -1,3 +1,4 @@
+import { PaymentDto } from './../admin/dto/create-admin.dto';
   import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus, UseInterceptors, UploadedFile, BadRequestException, Query, Req, UseGuards, InternalServerErrorException } from '@nestjs/common';
 import { StudentService } from './student.service';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -165,5 +166,29 @@ export class StudentController {
   async getMultipleCourseByStudentId (@Req() req : User){
     const multipleCourses = await this.studentService.getMultipleCourseById(req.user.userId)
     return{multipleCourses}
+  }
+  @Get('getBillSingleCourse/:courseId')
+  @HttpCode(HttpStatus.OK)
+  async getBillSingleCourse (@Param('courseId') courseId: string, @Req() req : User){
+     const paymentId = await this.studentService.postPayment(courseId,req.user.userId)
+     const payment =  await this.studentService.getPayment(paymentId)
+     return{payment}
+  }
+  @Get('getBillSingleCourse2/:paymentId')
+  @HttpCode(HttpStatus.OK)
+  async getBillSingleCourse2 (@Param('paymentId') paymentId : string) {
+    const payment = await this.studentService.getPayment(paymentId)
+    return{payment}
+  }
+  @Post('PaymentSucces/:paymentId')
+  @HttpCode(HttpStatus.CREATED)
+  async PaymentSucces (@Param('paymentId') paymentId: string){
+    const payment = await this.studentService.getPayment(paymentId)
+    await this.studentService.postCourseManagementSingle(payment.studentId, payment.courseId, 'learning')
+    const videos = await this.studentService.getCoursePaid(payment.courseId as string)
+
+    for(let i = 0;i< videos.length;i++){
+      await this.studentService.postStudentVideoProgress(payment.studentId, videos[i].videoId, payment.courseId)
+    }
   }
 }
