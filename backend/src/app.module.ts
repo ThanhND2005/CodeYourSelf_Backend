@@ -7,13 +7,14 @@ import { DatabaseModule } from './database.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { StudentModule } from './modules/student/student.module';
 import { TeacherModule } from './modules/teacher/teacher.module';
+import { PaymentModule } from './modules/payment/payment.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath:'.evn'
     }),
-    AuthModule,DatabaseModule,AdminModule,StudentModule,TeacherModule],
+    AuthModule,DatabaseModule,AdminModule,StudentModule,TeacherModule,PaymentModule],
   controllers: [AppController],
   providers: [AppService],
 })
