@@ -584,4 +584,10 @@ export class TeacherService {
       'UPDATE CourseManagement SET deleted=1 WHERE courseId=? AND studentId=?',[courseId,studentId]
     )
   }
+  async getNotificationCourse (teacherId: string) : Promise<mysql.RowDataPacket[]>{
+    const [rows] = await this.db.query<mysql.RowDataPacket[]>(
+      `SELECT n.notificationId, n.title, n.createdAt, s.avatarUrl FROM NotificationManagement nm JOIN Notification n on n.notificationId = nm.notificationId JOIN Student s ON s.userId = nm.senderId WHERE nm.receiverId = ? AND senderRole = 'student'`,[teacherId]
+    )
+    return rows
+  }
 }

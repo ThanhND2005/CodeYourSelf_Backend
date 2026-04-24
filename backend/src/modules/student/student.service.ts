@@ -233,11 +233,11 @@ export class StudentService {
   }
   async getMultipleCourseById(studentId: string): Promise<mysql.RowDataPacket[]> {
     const [rows1] = await this.db.execute<mysql.RowDataPacket[]>(
-      `SELECT mc.* FROM MultipleCourse mc JOIN CourseManagement cm on cm.multipleCourseId = mc.multipleCourseId WHERE studentId=? AND cm.multipleCourseId is not null AND cm.courseId is null`, [studentId]
+      `SELECT mc.* FROM MultipleCourse mc JOIN CourseManagement cm on cm.multipleCourseId = mc.multipleCourseId WHERE cm.studentId=? AND cm.multipleCourseId is not null AND cm.courseId is null`, [studentId]
     )
     for (let i = 0; i < rows1.length; i++) {
       const [courses] = await this.db.execute<mysql.RowDataPacket[]>(
-        `SELECT c.courseId, c.name, cm.progress FROM Course c JOIN CourseManagement cm on cm.courseId = c.courseId WHERE c.multipleCourseId=? AND cm.isMultiple=1`, [rows1[i].multipleCourseId]
+        `SELECT c.courseId, c.name, cm.progress FROM Course c JOIN CourseManagement cm on cm.courseId = c.courseId WHERE c.multipleCourseId=? AND cm.isMultiple=1 AND cm.studentId=?`, [rows1[i].multipleCourseId,studentId]
       )
       rows1[i].courses = courses
     }
@@ -433,5 +433,21 @@ export class StudentService {
       )
       const rows = rows1.concat(rows2)
       return rows
+    }
+    async postNotificationCourse (teacherId: string,studentName: string, courseName: string, studentId: string){
+      try {
+        const notificationId = randomUUID()
+        const content = `${studentName} vừa đăng ký khóa học ${courseName}`
+        await this.db.query(
+          `INSERT INTO Notification (notificationId,title) VALUES (?,?)`,[notificationId,content]
+        )
+        await this.db.query(
+          `INSERT INTO NotificationManagement (notificationId, senderId, senderRole, receiverId,receiverRole) VALUES (?,?,?,?,?)`,[notificationId,studentId,'student',teacherId,'teacher']
+        )
+        
+      } catch (error) {
+        console.error(error)
+        throw new InternalServerErrorException('loi')
+      }
     }
 }
