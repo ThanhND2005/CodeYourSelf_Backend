@@ -1,9 +1,16 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus, UseInterceptors, UploadedFile, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus, UseInterceptors, UploadedFile, BadRequestException, UseGuards, Req } from '@nestjs/common';
 import { TeacherService } from './teacher.service';
 
 import { FileInterceptor } from '@nestjs/platform-express';
 import { randomUUID } from 'node:crypto';
-
+import { AuthGuard } from 'src/guards/auth.guard';
+interface User extends Request{
+  user:{
+    userId: string, 
+    role: string
+  }
+}
+@UseGuards(AuthGuard)
 @Controller('apis/teacher')
 export class TeacherController {
   constructor(private readonly teacherService: TeacherService) {}
@@ -202,5 +209,11 @@ export class TeacherController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async deleteStudent(@Body() {courseId, studentId} : any) {
     await this.teacherService.deleteStudent(courseId, studentId)
+  }
+  @Get('getNotificationCourse')
+  @HttpCode(HttpStatus.OK)
+  async getNotificationCourse(@Req() req : User){
+    const notifications1 = await this.teacherService.getNotificationCourse(req.user.userId)
+    return{notifications1}
   }
 }

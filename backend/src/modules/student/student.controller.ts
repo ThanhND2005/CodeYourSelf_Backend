@@ -192,8 +192,11 @@ export class StudentController {
   @HttpCode(HttpStatus.CREATED)
   async PaymentSuccessRoadmap (@Param('paymentId') paymentId: string){
     const payment = await this.studentService.getPayment(paymentId)
+    const student = await this.studentService.getInformation(payment.studentId as string)
     const courseIds = String(payment.courseId).split(',')
     for(let i =0;i<courseIds.length;i++){
+      const course = await this.studentService.getDetailCourse(courseIds[i])
+      await this.studentService.postNotificationCourse(course.teacherId,student.name,course.name,student.userId)
       await this.studentService.postCourseManagementSingle(payment.studentId,courseIds[i],'learning')
       const videos = await this.studentService.getCoursePaid(courseIds[i])
       for(let j =0;j<videos.length;j++){
@@ -207,7 +210,9 @@ export class StudentController {
     const payment = await this.studentService.getPayment(paymentId)
     await this.studentService.postCourseManagementSingle(payment.studentId, payment.courseId, 'learning')
     const videos = await this.studentService.getCoursePaid(payment.courseId as string)
-
+    const student = await this.studentService.getInformation(payment.studentId as string)
+    const course = await this.studentService.getDetailCourse(payment.courseId as string)
+    await this.studentService.postNotificationCourse(course.teacherId,student.name,course.name,student.userId)
     for(let i = 0;i< videos.length;i++){
       await this.studentService.postStudentVideoProgress(payment.studentId, videos[i].videoId, payment.courseId)
     }
@@ -216,6 +221,9 @@ export class StudentController {
   @HttpCode(HttpStatus.CREATED)
   async PaymentSuccess2 (@Param('paymentId') paymentId: string){
     const payment = await this.studentService.getPayment(paymentId)
+    const student = await this.studentService.getInformation(payment.studentId as string)
+    const multipleCourse = await this.studentService.getDetailMultipleCourse(payment.courseId as string)
+    await this.studentService.postNotificationCourse(multipleCourse.teacherId,student.name,multipleCourse.name,payment.studentId)
     await this.studentService.postCourseManagementMultiple(payment.studentId,payment.courseId, 'learning')
   }
   @Post('postComment/:courseId')
