@@ -89,10 +89,11 @@ export class AdminService {
   }
   async getNotificationReceived(): Promise<DashboardNotificationDTO[]> {
     try {
-      const [rows] = await this.db.execute<DashboardNotificationDTO[]>(
-        `SELECT n.notificationId as id,n.content as message, n.createdAt, s.avatarUrl as senderAvatarUrl FROM Notification n JOIN NotificationManagement nm on nm.notificationId = n.notificationId JOIN Student s on s.userId = nm.senderId WHERE nm.receiverRole='admin'`, []
+      
+      const [rows1] = await this.db.execute<DashboardNotificationDTO[]>(
+        `SELECT n.notificationId as id,n.content as message, n.createdAt, s.avatarUrl as senderAvatarUrl FROM Notification n JOIN NotificationManagement nm on nm.notificationId = n.notificationId JOIN Teacher s on s.userId = nm.senderId WHERE nm.receiverRole='admin'`, []
       )
-      return rows
+      return rows1
     } catch (error) {
       console.error(error)
       throw error
@@ -189,11 +190,11 @@ ORDER BY createdat DESC;`, [userId]
     }
   }
   async getWaitCourses(): Promise<WaitCourseRow[]> {
-    const [rows] = await this.db.execute<WaitCourseRow[]>(`SELECT c.courseId, c.name, c.cost,c.summary,c.teacherId, t.name as teacherName,c.imageUrl FROM Course c JOIN Teacher t on t.userId= c.teacherId WHERE c.deleted=0 AND c.status='Chờ duyệt'`)
+    const [rows] = await this.db.execute<WaitCourseRow[]>(`SELECT c.courseId, c.name, c.cost,c.summary,c.teacherId, t.name as teacherName,c.imageUrl,c.status FROM Course c JOIN Teacher t on t.userId= c.teacherId WHERE c.deleted=0`)
     return rows
   }
   async getWaitMultipleCourses(): Promise<WaitCourseRow[]> {
-    const [rows] = await this.db.execute<WaitCourseRow[]>(`SELECT c.multipleCourseId as courseId, c.name, c.cost,c.sumary as summary,c.teacherId, t.name as teacherName,c.imageUrl FROM MultipleCourse c JOIN Teacher t on t.userId= c.teacherId WHERE c.deleted=0 AND c.status='Chờ duyệt'`)
+    const [rows] = await this.db.execute<WaitCourseRow[]>(`SELECT c.multipleCourseId as courseId, c.name, c.cost,c.sumary as summary,c.teacherId, t.name as teacherName,c.imageUrl,c.status FROM MultipleCourse c JOIN Teacher t on t.userId= c.teacherId WHERE c.deleted=0`)
     return rows
   }
   async getStudentBills(): Promise<StudentBill[]> {
@@ -295,12 +296,12 @@ ORDER BY createdat DESC;`, [userId]
   }
   async denyWaitCourse(courseId: string): Promise<void> {
     await this.db.execute(
-      `DELETE FROM Course WHERE courseId=?`, [courseId]
+      `UPDATE Course SET deleted=1 WHERE courseId=?`, [courseId]
     )
   }
   async denyWaitMultipleCourse(courseId: string): Promise<void> {
     await this.db.execute(
-      `DELETE FROM MultipleCourse WHERE multipleCourseId=?`, [courseId]
+      `UPDATE MultipleCourse SET deleted=1 WHERE multipleCourseId=?`, [courseId]
     )
   }
   async getCourseById(teacherId: string): Promise<StudentBill[]> {

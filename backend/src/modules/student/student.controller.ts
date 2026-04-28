@@ -196,11 +196,13 @@ export class StudentController {
     const courseIds = String(payment.courseId).split(',')
     for(let i =0;i<courseIds.length;i++){
       const course = await this.studentService.getDetailCourse(courseIds[i])
+      console.log(course)
       await this.studentService.postNotificationCourse(course.teacherId,student.name,course.name,student.userId)
       await this.studentService.postCourseManagementSingle(payment.studentId,courseIds[i],'learning')
       const videos = await this.studentService.getCoursePaid(courseIds[i])
+      
       for(let j =0;j<videos.length;j++){
-        await this.studentService.postStudentVideoProgress(payment.studentId,videos[i].videoId,courseIds[i])
+        await this.studentService.postStudentVideoProgress(payment.studentId,videos[j].videoId,courseIds[i])
       }
     }
   }
@@ -249,5 +251,16 @@ export class StudentController {
   async getReply(@Param('commentId') commentId: string){
     const replies = await this.studentService.getReply(commentId)
     return{replies}
+  }
+  @Patch('updateScore')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async updateScore (@Req() req : User, @Body() {videoId, score} : any){
+    await this.studentService.updateScore(videoId,score,req.user.userId)
+  }
+  @Get('getQuestions/:videoId')
+  @HttpCode(HttpStatus.OK)
+  async getQuestionsByVideo (@Param('videoId') videoId: string){
+    const questions = await this.studentService.getQuestionsByVideo(videoId)
+    return{questions}
   }
 }

@@ -80,13 +80,17 @@ export class TeacherController {
   @Post('postMultipleCourse/:userId')
   @HttpCode(HttpStatus.CREATED)
   async posMultipletCourse(@Param('userId') userId: string,@Body() {name, cost, summary} : any) {
+    const teacher = await this.teacherService.getInformation(userId)
     await this.teacherService.postMultipleCourse(name,cost,summary,userId,0)
+    await this.teacherService.postNotificationCourse(userId,teacher.name)
     return{message:'ok'}
   }
   @Post('postCourse/:userId')
   @HttpCode(HttpStatus.CREATED)
   async postCourse(@Param('userId') userId: string,@Body() {name, cost, summary} : any) {
+    const teacher = await this.teacherService.getInformation(userId)
     await this.teacherService.postCourse(name,cost,summary,userId,0)
+    await this.teacherService.postNotificationCourse(userId,teacher.name)
     return{message:'ok'}
   }
   @Patch('patchCourse/:courseId')
@@ -215,5 +219,10 @@ export class TeacherController {
   async getNotificationCourse(@Req() req : User){
     const notifications1 = await this.teacherService.getNotificationCourse(req.user.userId)
     return{notifications1}
+  }
+  @Post('postQuestion')
+  @HttpCode(HttpStatus.CREATED)
+  async postQuestion(@Body() {videoId,content,optionA,optionB,optionC,optionD,correctAnswer,timestamp} : any){
+    await this.teacherService.postQuestion(videoId,content,optionA,optionB,optionC,optionD,correctAnswer,timestamp)
   }
 }
