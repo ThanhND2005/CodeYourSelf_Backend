@@ -29,7 +29,6 @@ export class StudentService {
         `SELECT c.courseId, c.name, c.imageUrl, c.cost, c.rate, t.name as teacherName
        FROM Course c
        JOIN Teacher t on t.userId = c.teacherId
-       -- Sử dụng LOWER() để so sánh không phân biệt hoa/thường
        WHERE LOWER(c.name) LIKE ? OR LOWER(c.summary) LIKE ?`,
         [searchPattern, searchPattern]
       );
@@ -48,7 +47,6 @@ export class StudentService {
         `SELECT c.multipleCourseId, c.name, c.imageUrl, c.cost, c.rate, t.name as teacherName
        FROM MultipleCourse c
        JOIN Teacher t on t.userId = c.teacherId
-       -- Sử dụng LOWER() để so sánh không phân biệt hoa/thường
        WHERE LOWER(c.name) LIKE ? OR LOWER(c.sumary) LIKE ?`,
         [searchPattern, searchPattern]
       );
@@ -318,7 +316,7 @@ export class StudentService {
       courseId += selectedCourseIds[selectedCourseIds.length - 1]
       const course = await this.getDetailCourse(selectedCourseIds[selectedCourseIds.length - 1])
       amount += course.cost*0.8
-  
+        
       const day = new Date()
       const url = `https://img.vietqr.io/image/mbbank-0334477715-print.png?amount=${amount}&addInfo=${paymentId}&accountName=Code%20Your%20Self`
       try {
@@ -369,12 +367,26 @@ export class StudentService {
       )
       for(let i =0;i<courses.length; i++){
         await this.db.query(
-          `INSERT INTO CourseManagement (studentId, courseId, multipleCourseId, status, isMultiple) VALUES (?,?,?,?,?)`,[studentId,courses[i].courseId, courseId,status,1]
+          `
+          UPDATE CourseManagement SET multipleCourseId=? WHERE courseId=? AND studentId=?
+          `,[courseId,courses[i].courseId, studentId]
+        )
+        await this.db.query(
+          `INSERT INTO CourseManagement (studentId, courseId, multipleCourseId, status, isMultiple)
+  SELECT ?, ?, ?, ?, ?
+  FROM DUAL
+  WHERE NOT EXISTS (
+      SELECT 1 FROM CourseManagement 
+      WHERE courseId = ? 
+        AND multipleCourseId = ? 
+        AND studentId = ?)`,[studentId,courses[i].courseId, courseId,status,1,courses[i].courseId, courseId,studentId]
         )
         const videos = await this.getCoursePaid(courses[i].courseId as string)
         for(let j =0;j<videos.length;j++){
           await this.db.query(
-            `INSERT INTO StudentVideoProgress (studentId, videoId, courseId) VALUES (?,?,?)`,[studentId,videos[j].videoId,courses[i].courseId]
+            `INSERT INTO StudentVideoProgress (studentId, videoId, courseId) 
+            SELECT ?,?,? FROM DUAL WHERE NOT EXISTS (
+            SELECT 1 FROM StudentVideoProgress WHERE studentId=? AND videoId=? AND courseId=?)`,[studentId,videos[j].videoId,courses[i].courseId,studentId,videos[j].videoId,courses[i].courseId]
           )
         }
       }
@@ -445,6 +457,27 @@ export class StudentService {
           `INSERT INTO NotificationManagement (notificationId, senderId, senderRole, receiverId,receiverRole) VALUES (?,?,?,?,?)`,[notificationId,studentId,'student',teacherId,'teacher']
         )
         
+      } catch (error) {
+        console.error(error)
+        throw new InternalServerErrorException('loi')
+      }
+    }
+    async updateScore (videoId : string, score: number,studentId: string){
+      try {
+        await this.db.query(
+          `UPDATE StudentVideoProgress SET score=? WHERE videoId=? AND studentId=?`,[score, videoId,studentId]
+        )
+      } catch (error) {
+        console.error(error)
+        throw new InternalServerErrorException('loi')
+      }
+    }
+    async getQuestionsByVideo (videoId : string) : Promise<mysql.RowDataPacket[]>{
+      try {
+        const [rows] = await this.db.query<mysql.RowDataPacket[]>(
+          `SELECT * FROM Questions WHERE videoId=?`,[videoId]
+        )
+        return rows
       } catch (error) {
         console.error(error)
         throw new InternalServerErrorException('loi')

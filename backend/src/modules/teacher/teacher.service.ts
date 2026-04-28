@@ -590,4 +590,24 @@ export class TeacherService {
     )
     return rows
   }
+  async postNotificationCourse  (teacherId : string,teacherName: string){
+    const notificationId = randomUUID()
+    const content = `Giáo viên ${teacherName} đã tạo một khóa học mới.`
+    await this.db.query(
+      `INSERT INTO Notification (notificationId, title,content) VALUES (?,?,?)`,[notificationId,'Tạo khóa học',content]
+    )
+    await this.db.query(
+      `INSERT INTO NotificationManagement (notificationId,senderId, senderRole, receiverId, receiverRole) VALUES (?,?,?,?,?)`,[notificationId,teacherId,'teacher','99fdb54e-27e2-11f1-a6e5-2e8453cbf53b','admin']
+    )
+  }
+  async postQuestion (videoId: string, content: string, optionA: string, optionB: string, optionC: string, optionD: string, correctAnswer: string, timestamp: number){
+    try {
+      await this.db.execute(
+        `INSERT INTO Questions (videoId, content, optionA, optionB,optionC, optionD,correctAnswer,timestamp) VALUES (?,?,?,?,?,?,?,?)`,[videoId,content,optionA,optionB,optionC,optionD,correctAnswer,timestamp]
+      )
+    } catch (error) {
+      console.error(error)
+      throw new InternalServerErrorException('loi he thong')
+    }
+  }
 }
