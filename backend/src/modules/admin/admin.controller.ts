@@ -1,5 +1,5 @@
 
-import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus, InternalServerErrorException, Req, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus, InternalServerErrorException, Req, UseGuards, Query, DefaultValuePipe, ParseIntPipe } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { randomUUID } from 'crypto';
 import { PaymentDto } from './dto/create-admin.dto';
@@ -36,6 +36,30 @@ export class AdminController {
       throw new InternalServerErrorException
     }
   }
+  @Get('getStudentsPaginated')
+  @Roles('admin')
+  @HttpCode(HttpStatus.OK)
+  async getStudentsPaginated(
+    @Query('page',new DefaultValuePipe(1),ParseIntPipe) page: number,
+    @Query('limit',new DefaultValuePipe(10),ParseIntPipe) limit: number,
+  ) {
+    try {
+      const pageNum = Math.max(1, page || 1)
+      const limitNum = Math.min(100, Math.max(1, limit || 10))
+     
+      const result = await this.adminService.getStudentsPaginated(pageNum, limitNum)
+      return {
+        students: result.students,
+        total: result.total,
+        page: pageNum,
+        limit: limitNum,
+        message: 'Lấy danh sách học viên thành công',
+      }
+    } catch (error) {
+      console.error(error)
+      throw new InternalServerErrorException
+    }
+  }
   @Patch('deleteStudent/:userId')
   @HttpCode(HttpStatus.NO_CONTENT)
   async deleteStudent(@Param('userId') userId: string){
@@ -55,6 +79,28 @@ export class AdminController {
       return {
         teachers,
         message:'Lấy thông tin giáo viên thành công'
+      }
+    } catch (error) {
+      console.error(error)
+      throw new InternalServerErrorException
+    }
+  }
+  @Get('getTeachersPaginated')
+  @HttpCode(HttpStatus.OK)
+  async getTeachersPaginated(
+    @Query('page',new DefaultValuePipe(1),ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10),ParseIntPipe) limit: number,
+  ) {
+    try {
+      const pageNum = Math.max(1, page || 1)
+      const limitNum = Math.min(100, Math.max(1, limit|| 10))
+      const result = await this.adminService.getTeachersPaginated(pageNum, limitNum)
+      return {
+        teachers: result.teachers,
+        total: result.total,
+        page: pageNum,
+        limit: limitNum,
+        message: 'Lấy danh sách giáo viên thành công',
       }
     } catch (error) {
       console.error(error)
