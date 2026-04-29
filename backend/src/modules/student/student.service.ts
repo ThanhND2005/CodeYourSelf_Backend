@@ -304,17 +304,21 @@ export class StudentService {
     }
   }
   async postPaymentRoadmap(selectedCourseIds : string[],studentId : string) :Promise<string>{
+      
       const paymentId = randomUUID()
       let courseId=''
       let amount = 0
       for(let i = 0;i<selectedCourseIds.length-1;i++){
         courseId += selectedCourseIds[i]
         courseId +=','
+        
         const course = await this.getDetailCourse(selectedCourseIds[i])
+        
         amount += course.cost*0.8
       }
       courseId += selectedCourseIds[selectedCourseIds.length - 1]
       const course = await this.getDetailCourse(selectedCourseIds[selectedCourseIds.length - 1])
+    
       amount += course.cost*0.8
         
       const day = new Date()
