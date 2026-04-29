@@ -103,6 +103,17 @@ export class AdminService {
     const [rows] = await this.db.execute<mysql.RowDataPacket[]>(`SELECT s.* FROM Student s JOIN Account a on a.userId = s.userId AND a.deleted = 0 WHERE s.deleted = 0`, [])
     return rows
   }
+  async getStudentsPaginated(page: number, limit: number): Promise<{ students: mysql.RowDataPacket[], total: number }> {
+    const offset = (page - 1) * limit
+    const [rows] = await this.db.query<mysql.RowDataPacket[]>(
+      `SELECT s.* FROM Student s JOIN Account a ON a.userId = s.userId AND a.deleted = 0 WHERE s.deleted = 0 LIMIT ? OFFSET ?`,
+      [limit, offset]
+    )
+    const [[countRow]] = await this.db.execute<mysql.RowDataPacket[]>(
+      `SELECT COUNT(*) as total FROM Student s JOIN Account a ON a.userId = s.userId AND a.deleted = 0 WHERE s.deleted = 0`, []
+    )
+    return { students: rows, total: (countRow as any).total }
+  }
   async deleteStudent(userId: string): Promise<void> {
     const connection: mysql.PoolConnection = await this.db.getConnection()
     try {
@@ -122,6 +133,19 @@ export class AdminService {
   async getTeachers(): Promise<TeacherRow[]> {
     const [rows] = await this.db.execute<TeacherRow[]>(`SELECT userId, name,dob,address, phone, gender, createdAt,avatarUrl,bankName,bankAccount FROM Teacher WHERE deleted=0`)
     return rows
+  }
+  async getTeachersPaginated(page: number, limit: number): Promise<{ teachers: TeacherRow[], total: number }> {
+    const limitNum = Number(limit) || 10;
+    const pageNum = Number(page) || 1;
+    const offset = (pageNum - 1) * limitNum;
+    const [rows] = await this.db.query<TeacherRow[]>(
+      `SELECT userId, name, dob, address, phone, gender, createdAt, avatarUrl, bankName, bankAccount FROM Teacher WHERE deleted=0 LIMIT ? OFFSET ?`,
+      [limitNum, offset]
+    )
+    const [[countRow]] = await this.db.execute<mysql.RowDataPacket[]>(
+      `SELECT COUNT(*) as total FROM Teacher WHERE deleted=0`, []
+    )
+    return { teachers: rows, total: (countRow as any).total }
   }
   async deleteTeacher(userId: string): Promise<void> {
     const connection: mysql.PoolConnection = await this.db.getConnection()
