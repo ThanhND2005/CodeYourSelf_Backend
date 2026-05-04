@@ -87,8 +87,8 @@ export class StudentController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async reviewCourse(@Param('courseId') courseId: string, @Body() {courseScore} : any){
     const course = await this.studentService.getDetailCourse(courseId)
-    const newScore = (course.rate + courseScore)/2
-    await this.studentService.reviewCourse(newScore,courseId)
+    const newScore = (course.rate*course.reviewer + courseScore)/(course.reviewer + 1)
+    await this.studentService.reviewCourse(newScore,courseId,course.reviewer +1)
     return{message:'Đánh giá thành công'}
   }
   

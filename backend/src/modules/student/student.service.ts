@@ -100,10 +100,10 @@ export class StudentService {
       throw new InternalServerErrorException('lỗi hệ thống')
     }
   }
-  async reviewCourse(courseScore: number, courseId: string): Promise<void> {
+  async reviewCourse(courseScore: number, courseId: string,reviewer : number): Promise<void> {
     try {
       await this.db.execute(
-        'UPDATE Course SET rate=? WHERE courseId=?', [courseScore, courseId]
+        'UPDATE Course SET rate=?, reviewer=? WHERE courseId=?', [courseScore,reviewer, courseId]
       )
     } catch (error) {
       console.error(error)
